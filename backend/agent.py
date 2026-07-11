@@ -76,7 +76,7 @@ workflow = StateGraph(State)
 
 # Define the nodes in our graph
 workflow.add_node("agent", call_model)
-# workflow.add_node("tools", ToolNode([web_search]))
+workflow.add_node("tools", ToolNode([web_search]))
 
 # Define the edges and routing logic
 workflow.add_edge(START, "agent")

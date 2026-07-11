@@ -13,6 +13,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var theme = localStorage.getItem('theme') || 'system';
+            var root = document.documentElement;
+            if (theme === 'system') {
+              var darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+              theme = darkQuery.matches ? 'dark' : 'light';
+            }
+            if (theme === 'light') {
+              root.setAttribute('data-theme', 'light');
+            } else {
+              root.removeAttribute('data-theme');
+            }
+          })();
+        ` }} />
+      </head>
       <body>
         <div className="glow-orbs">
           <div className="orb orb-1"></div>

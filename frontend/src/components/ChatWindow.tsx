@@ -152,11 +152,42 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
       <div className={styles.messagesArea}>
         {messages.length === 0 ? (
           <div className={styles.emptyState}>
-            <Sparkles className={styles.emptyIcon} size={48} />
-            <h3 className={styles.emptyTitle}>Welcome to Phase 1 Chatbot</h3>
+            <Sparkles className={styles.emptyIcon} size={48} style={{ color: "var(--accent-secondary)", opacity: 0.8 }} />
+            <h3 className={styles.emptyTitle}>Empower Your Data Decisions</h3>
             <p className={styles.emptyDesc}>
-              Ask questions to interact with the LLM via LangGraph state checking. In subsequent phases, we will integrate vector retrieval and SQL databases.
+              Chat with your dynamic workspace to discover real-time web insights, retrieve knowledge, or analyze database systems.
             </p>
+            
+            <div className={styles.suggestionsGrid}>
+              <div className={styles.suggestionCard} onClick={() => setInput("What are the latest breakthroughs in AI agents?")}>
+                <span className={styles.suggestionEmoji}>🔍</span>
+                <div className={styles.suggestionContent}>
+                  <div className={styles.suggestionTitle}>Web Search</div>
+                  <div className={styles.suggestionText}>Look up real-time news and web information</div>
+                </div>
+              </div>
+              <div className={styles.suggestionCard} onClick={() => setInput("What date and time is it today?")}>
+                <span className={styles.suggestionEmoji}>📅</span>
+                <div className={styles.suggestionContent}>
+                  <div className={styles.suggestionTitle}>System Time</div>
+                  <div className={styles.suggestionText}>Test dynamic time injection and context</div>
+                </div>
+              </div>
+              <div className={styles.suggestionCard} onClick={() => setInput("How does vector retrieval ground AI answers?")}>
+                <span className={styles.suggestionEmoji}>📚</span>
+                <div className={styles.suggestionContent}>
+                  <div className={styles.suggestionTitle}>Vector Database</div>
+                  <div className={styles.suggestionText}>Preview Phase 2 knowledge grounding</div>
+                </div>
+              </div>
+              <div className={styles.suggestionCard} onClick={() => setInput("How will Generative UI help analyze metrics?")}>
+                <span className={styles.suggestionEmoji}>📊</span>
+                <div className={styles.suggestionContent}>
+                  <div className={styles.suggestionTitle}>Database Analytics</div>
+                  <div className={styles.suggestionText}>Preview Phase 3 interactive visuals</div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           messages.map((msg) => (
