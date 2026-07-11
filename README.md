@@ -4,6 +4,8 @@ DataMind AI is an interactive, stateful AI chatbot application built on the **La
 
 The project's architectural goal is to enable users to interact with their databases, perform analytics, retrieve knowledge from vector databases, and render rich visual charts/widgets directly in the chat feed (Generative UI).
 
+![DataMind AI Dashboard](assets/screenshot.png)
+
 ---
 
 ## 🗺️ Project Roadmap: Phased Implementation
