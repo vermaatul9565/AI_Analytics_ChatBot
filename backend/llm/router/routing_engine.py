@@ -136,6 +136,10 @@ class RoutingEngine:
             system_instruction = (
                 "You are an expert AI orchestrator. Analyze the user prompt and respond with a single JSON block. "
                 "Do NOT wrap JSON in markdown backticks. Do NOT output any other text.\n\n"
+                "Guidelines for 'required_capabilities':\n"
+                "- Only specify 'reasoning' if the prompt requires multi-step logic, complex math, or deep analytical deductions.\n"
+                "- Do NOT specify 'reasoning' for simple informational lookups, news, or general QA.\n"
+                "- Specify 'web_search' if the request relates to real-time events, current news, or lookup facts.\n\n"
                 "JSON format:\n"
                 "{\n"
                 "  \"intent\": \"coding\" | \"debugging\" | \"general_qa\" | \"writing\" | \"research\" | \"summarization\" | \"image_analysis\" | \"data_engineering\" | \"sql_generation\" | \"architecture_design\" | \"agentic_workflow\" | \"tool_execution\",\n"
