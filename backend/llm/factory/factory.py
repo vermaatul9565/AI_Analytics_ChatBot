@@ -15,6 +15,8 @@ class LLMFactory:
         "claude-sonnet-4.6": {"provider": "anthropic", "model": "claude-3-5-sonnet-20241022"},
         "claude-opus-4.6": {"provider": "anthropic", "model": "claude-3-opus-20240229"},
         "gpt-4.6-omni": {"provider": "openai", "model": "gpt-4o"},
+        "groq-llama-3.3-70b": {"provider": "groq", "model": "llama-3.3-70b-versatile"},
+        "groq-llama-3.1-8b": {"provider": "groq", "model": "llama-3.1-8b-instant"},
     }
     
     @staticmethod

@@ -23,7 +23,9 @@ const UNIFIED_MODELS = [
   { id: "gemini-3.1-pro-high", name: "Gemini 3.1 Pro (High)" },
   { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6 (Thinking)" },
   { id: "claude-opus-4.6", name: "Claude Opus 4.6 (Thinking)" },
-  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni (Medium)" }
+  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni (Medium)" },
+  { id: "groq-llama-3.3-70b", name: "Llama 3.3 70B (Groq)" },
+  { id: "groq-llama-3.1-8b", name: "Llama 3.1 8B (Groq)" }
 ];
 
 export default function ChatWindow({ threadId }: ChatWindowProps) {
