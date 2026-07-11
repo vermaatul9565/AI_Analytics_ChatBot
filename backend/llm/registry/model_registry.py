@@ -21,10 +21,10 @@ class ModelMetadata(BaseModel):
 
 class ModelRegistry:
     _models: Dict[str, ModelMetadata] = {
-        "gemini-3.5-flash-low": ModelMetadata(
-            id="gemini-3.5-flash-low",
+        "gemini-3.1-flash-lite": ModelMetadata(
+            id="gemini-3.1-flash-lite",
             provider="google",
-            model_name="gemini-1.5-flash-8b",
+            model_name="gemini-3.1-flash-lite",
             context_window=1000000,
             supports_vision=True,
             supports_reasoning=False,
@@ -39,10 +39,10 @@ class ModelRegistry:
             quality_score=0.45,
             preferred_categories=["general_qa", "summarization", "writing"]
         ),
-        "gemini-3.5-flash-medium": ModelMetadata(
-            id="gemini-3.5-flash-medium",
+        "gemini-3.5-flash": ModelMetadata(
+            id="gemini-3.5-flash",
             provider="google",
-            model_name="gemini-2.5-flash",
+            model_name="gemini-3.5-flash",
             context_window=1000000,
             supports_vision=True,
             supports_reasoning=False,
@@ -60,7 +60,7 @@ class ModelRegistry:
         "gemini-3.5-flash-high": ModelMetadata(
             id="gemini-3.5-flash-high",
             provider="google",
-            model_name="gemini-2.5-pro",
+            model_name="gemini-3.5-flash",
             context_window=2000000,
             supports_vision=True,
             supports_reasoning=True,
@@ -75,10 +75,10 @@ class ModelRegistry:
             quality_score=0.93,
             preferred_categories=["coding", "debugging", "data_engineering", "sql_generation", "architecture_design", "reasoning"]
         ),
-        "gemini-3.1-pro-low": ModelMetadata(
-            id="gemini-3.1-pro-low",
+        "gemini-3.1-pro-preview": ModelMetadata(
+            id="gemini-3.1-pro-preview",
             provider="google",
-            model_name="gemini-1.5-pro",
+            model_name="gemini-3.1-pro-preview",
             context_window=2000000,
             supports_vision=True,
             supports_reasoning=False,
@@ -93,10 +93,10 @@ class ModelRegistry:
             quality_score=0.88,
             preferred_categories=["coding", "debugging", "data_engineering", "sql_generation", "architecture_design"]
         ),
-        "gemini-3.1-pro-high": ModelMetadata(
-            id="gemini-3.1-pro-high",
+        "gemini-3.1-pro-preview-high": ModelMetadata(
+            id="gemini-3.1-pro-preview-high",
             provider="google",
-            model_name="gemini-2.5-pro",
+            model_name="gemini-3.1-pro-preview",
             context_window=2000000,
             supports_vision=True,
             supports_reasoning=True,

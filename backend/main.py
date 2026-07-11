@@ -3,7 +3,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -37,7 +37,7 @@ async def chat_endpoint(request: ChatRequest):
     async def event_generator():
         start_time = time.time()
         current_complexity = "simple"
-        routed_model_id = "gemini-3.5-flash-medium"
+        routed_model_id = "gemini-3.5-flash"
         routing_metadata_dump = {}
         
         # Track tokens and costs
@@ -142,7 +142,7 @@ async def chat_endpoint(request: ChatRequest):
                 # Resolve model id for this node
                 m_id = routed_model_id
                 if node == "planner":
-                    m_id = "gemini-3.5-flash-medium"  # Fallback guess
+                    m_id = "gemini-3.5-flash"  # Fallback guess
                 
                 model_meta = ModelRegistry.get_model(m_id)
                 if model_meta:
@@ -194,6 +194,60 @@ async def chat_endpoint(request: ChatRequest):
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.get("/api/providers/availability")
+async def get_providers_availability():
+    return {
+        "google": bool(os.environ.get("GOOGLE_API_KEY")),
+        "openai": bool(os.environ.get("OPENAI_API_KEY")),
+        "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "groq": bool(os.environ.get("GROQ_API_KEY")),
+    }
+
+@app.post("/api/transcribe")
+async def transcribe_endpoint(file: UploadFile = File(...)):
+    logger.info(f"[API] Transcribe request: filename={file.filename}, content_type={file.content_type}")
+    
+    google_api_key = os.environ.get("GOOGLE_API_KEY")
+    if not google_api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY is not configured in the backend environment.")
+        
+    try:
+        import google.generativeai as genai
+        
+        genai.configure(api_key=google_api_key)
+        
+        audio_content = await file.read()
+        mime_type = file.content_type or "audio/webm"
+        
+        try:
+            model = genai.GenerativeModel("gemini-3.5-flash")
+            prompt = "Please accurately transcribe this audio. Output only the exact spoken text from the audio, without any additional conversational text or formatting."
+            
+            audio_part = {
+                "mime_type": mime_type,
+                "data": audio_content
+            }
+            
+            response = model.generate_content([prompt, audio_part])
+            text = response.text
+            
+            # Strip markdown if present
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1]
+                text = text.rsplit("```", 1)[0]
+            text = text.strip()
+            
+            logger.info(f"[API] Transcribe success: text='{text}'")
+            return {"text": text}
+            
+        except Exception as api_err:
+            logger.error(f"[API] Gemini transcription failed: {api_err}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Gemini API Error: {str(api_err)}")
+            
+    except Exception as e:
+        logger.error(f"[API] Transcribe failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -7,11 +7,11 @@ class LLMFactory:
     """Factory to instantiate LLM providers and models dynamically from environment/config."""
     
     UNIFIED_MODEL_MAP = {
-        "gemini-3.5-flash-low": {"provider": "google", "model": "gemini-1.5-flash-8b"},
-        "gemini-3.5-flash-medium": {"provider": "google", "model": "gemini-2.5-flash"},
-        "gemini-3.5-flash-high": {"provider": "google", "model": "gemini-2.5-pro"},
-        "gemini-3.1-pro-low": {"provider": "google", "model": "gemini-1.5-pro"},
-        "gemini-3.1-pro-high": {"provider": "google", "model": "gemini-2.5-pro"},
+        "gemini-3.1-flash-lite": {"provider": "google", "model": "gemini-3.1-flash-lite"},
+        "gemini-3.5-flash": {"provider": "google", "model": "gemini-3.5-flash"},
+        "gemini-3.5-flash-high": {"provider": "google", "model": "gemini-3.5-flash"},
+        "gemini-3.1-pro-preview": {"provider": "google", "model": "gemini-3.1-pro-preview"},
+        "gemini-3.1-pro-preview-high": {"provider": "google", "model": "gemini-3.1-pro-preview"},
         "claude-sonnet-4.6": {"provider": "anthropic", "model": "claude-3-5-sonnet-20241022"},
         "claude-sonnet-4.7": {"provider": "anthropic", "model": "claude-3-5-sonnet-20241022"},
         "claude-opus-4.6": {"provider": "anthropic", "model": "claude-3-opus-20240229"},

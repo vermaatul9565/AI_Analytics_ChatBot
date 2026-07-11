@@ -38,6 +38,6 @@
   "preferred_models": {
     "coding": "claude-sonnet-4.6",
     "sql_generation": "gemini-3.5-flash-high",
-    "general_qa": "gemini-3.5-flash-medium"
+    "general_qa": "gemini-3.5-flash"
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, MessageSquare } from "lucide-react";
+import { Send, Sparkles, MessageSquare, Mic, MicOff } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import styles from "./ChatWindow.module.css";
 
@@ -30,23 +30,23 @@ interface ChatWindowProps {
 }
 
 const UNIFIED_MODELS = [
-  { id: "auto", name: "Auto Mode (Intelligent)" },
-  { id: "gemini-3.5-flash-low", name: "Gemini 3.5 Flash (Low)" },
-  { id: "gemini-3.5-flash-medium", name: "Gemini 3.5 Flash (Medium)" },
-  { id: "gemini-3.5-flash-high", name: "Gemini 3.5 Flash (High)" },
-  { id: "gemini-3.1-pro-low", name: "Gemini 3.1 Pro (Low)" },
-  { id: "gemini-3.1-pro-high", name: "Gemini 3.1 Pro (High)" },
-  { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6 (Requires API Key)" },
-  { id: "claude-sonnet-4.7", name: "Claude Sonnet 4.7 (Requires API Key)" },
-  { id: "claude-opus-4.6", name: "Claude Opus 4.6 (Requires API Key)" },
-  { id: "claude-opus-4.7", name: "Claude Opus 4.7 (Requires API Key)" },
-  { id: "claude-opus-4.8", name: "Claude Opus 4.8 (Requires API Key)" },
-  { id: "claude-fable-5", name: "Claude Fable 5 (Requires API Key)" },
-  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni (Requires API Key)" },
-  { id: "gpt-5.5-omni", name: "GPT 5.5 Omni (Requires API Key)" },
-  { id: "gpt-5.6-omni", name: "GPT 5.6 Omni (Requires API Key)" },
-  { id: "groq-llama-3.3-70b", name: "Llama 3.3 70B (Groq)" },
-  { id: "groq-llama-3.1-8b", name: "Llama 3.1 8B (Groq)" }
+  { id: "auto", name: "Auto Mode (Intelligent)", provider: "auto" },
+  { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite (Low)", provider: "google" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash (Medium)", provider: "google" },
+  { id: "gemini-3.5-flash-high", name: "Gemini 3.5 Flash (High)", provider: "google" },
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Low)", provider: "google" },
+  { id: "gemini-3.1-pro-preview-high", name: "Gemini 3.1 Pro (High)", provider: "google" },
+  { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", provider: "anthropic" },
+  { id: "claude-sonnet-4.7", name: "Claude Sonnet 4.7", provider: "anthropic" },
+  { id: "claude-opus-4.6", name: "Claude Opus 4.6", provider: "anthropic" },
+  { id: "claude-opus-4.7", name: "Claude Opus 4.7", provider: "anthropic" },
+  { id: "claude-opus-4.8", name: "Claude Opus 4.8", provider: "anthropic" },
+  { id: "claude-fable-5", name: "Claude Fable 5", provider: "anthropic" },
+  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni", provider: "openai" },
+  { id: "gpt-5.5-omni", name: "GPT 5.5 Omni", provider: "openai" },
+  { id: "gpt-5.6-omni", name: "GPT 5.6 Omni", provider: "openai" },
+  { id: "groq-llama-3.3-70b", name: "Llama 3.3 70B", provider: "groq" },
+  { id: "groq-llama-3.1-8b", name: "Llama 3.1 8B", provider: "groq" }
 ];
 
 export default function ChatWindow({ threadId }: ChatWindowProps) {
@@ -56,8 +56,33 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
   const [isFocused, setIsFocused] = useState(false);
   
   const [selectedModel, setSelectedModel] = useState<string>("auto");
+  const [providerAvailability, setProviderAvailability] = useState<Record<string, boolean>>({
+    google: true,
+    openai: false,
+    anthropic: false,
+    groq: false,
+  });
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiBaseUrl}/api/providers/availability`);
+        if (res.ok) {
+          const data = await res.json();
+          setProviderAvailability(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch provider key availability:", err);
+      }
+    };
+    fetchAvailability();
+  }, []);
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {
@@ -69,18 +94,16 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
     setMessages([]);
   }, [threadId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+  const sendMessage = async (messageText: string) => {
+    if (!messageText.trim() || isStreaming) return;
 
-    const userMessageContent = input.trim();
     const userMsgId = `msg-${Date.now()}-user`;
     const assistantMsgId = `msg-${Date.now()}-assistant`;
 
     const userMessage: Message = {
       id: userMsgId,
       role: "user",
-      content: userMessageContent,
+      content: messageText,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -101,7 +124,7 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: userMessageContent,
+          message: messageText,
           thread_id: threadId,
           model: selectedModel
         }),
@@ -209,6 +232,87 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
             : msg
         )
       );
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendMessage(input);
+  };
+
+  const handleStartRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Browser does not support audio recording.");
+      return;
+    }
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop()); // release mic
+        await handleTranscribe(audioBlob);
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to start audio recording:", err);
+      alert("Microphone access denied or error starting recording.");
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleTranscribe = async (audioBlob: Blob) => {
+    setIsStreaming(true);
+    setInput("Transcribing voice...");
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", audioBlob, "recording.webm");
+      
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiBaseUrl}/api/transcribe`, {
+        method: "POST",
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server returned status code ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const transcribedText = data.text || "";
+      
+      if (transcribedText.trim()) {
+        setInput(""); // clear transcribing placeholder
+        await sendMessage(transcribedText);
+      } else {
+        setInput("");
+        alert("Could not transcribe any speech. Please try speaking closer to the microphone.");
+      }
+    } catch (err: any) {
+      console.error("Transcription error:", err);
+      setInput("");
+      alert(`Transcription failed: ${err.message}`);
     } finally {
       setIsStreaming(false);
     }
@@ -355,6 +459,16 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
           disabled={isStreaming || !threadId}
         />
         
+        <button
+          type="button"
+          onClick={isRecording ? handleStopRecording : handleStartRecording}
+          className={`${styles.micButton} ${isRecording ? styles.micButtonRecording : ""}`}
+          disabled={isStreaming || !threadId}
+          title={isRecording ? "Stop recording and transcribe" : "Record voice input"}
+        >
+          {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+        </button>
+
         <div className={styles.inputModelSelectWrapper}>
           <select
             className={styles.inputModelSelect}
@@ -362,9 +476,15 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
             onChange={(e) => setSelectedModel(e.target.value)}
             disabled={isStreaming || !threadId}
           >
-            {UNIFIED_MODELS.map(m => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
+            {UNIFIED_MODELS.map(m => {
+              const isConfigured = m.provider === "auto" || providerAvailability[m.provider] !== false;
+              const displayName = isConfigured ? m.name : `${m.name} (API key not configured)`;
+              return (
+                <option key={m.id} value={m.id} disabled={!isConfigured}>
+                  {displayName}
+                </option>
+              );
+            })}
           </select>
         </div>
 

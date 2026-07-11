@@ -7,6 +7,9 @@ from llm.interfaces.base_chat_model import BaseChatModelInterface
 
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta import Content, Part, FunctionCall, FunctionResponse
+import logging
+
+logger = logging.getLogger("uvicorn")
 
 # Helper to convert LangChain messages to Gemini protobuf objects
 def convert_messages_to_gemini(messages):
@@ -168,6 +171,7 @@ class GoogleThoughtChatModel(BaseChatModelInterface):
             filtered_messages = messages
 
         gemini_contents = convert_messages_to_gemini(filtered_messages)
+        logger.info(f"[GoogleProvider] Converted messages: {gemini_contents}")
         genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
         model = genai.GenerativeModel(self.model_name, system_instruction=system_instruction)
         

@@ -109,8 +109,8 @@ class RoutingEngine:
         # Find a fast, available model to perform the classification
         classifier_candidates = [
             "groq-llama-3.1-8b",
-            "gemini-3.5-flash-low",
-            "gemini-3.5-flash-medium"
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash"
         ]
         
         selected_model = None
@@ -258,6 +258,16 @@ class RoutingEngine:
         except Exception as e:
             logger.warning(f"[RoutingEngine] Failed to load routing_config.json ({e}). Using default balanced weights.")
 
+        # Prioritize cost and latency/speed heavily for simple tasks
+        if complexity == "simple":
+            logger.info("[RoutingEngine] Simple task detected. Overriding weights to prioritize cost and latency/speed.")
+            weights = {
+                "quality": 0.0,
+                "cost": 0.50,
+                "latency": 0.40,
+                "reliability": 0.10
+            }
+
         # Step 3: Evaluate Candidates
         candidates = ModelRegistry.list_models()
         valid_candidates = []
@@ -323,14 +333,14 @@ class RoutingEngine:
 
         if not valid_candidates:
             # Absolute fallback if no candidate satisfies constraints or has active keys
-            # Use gemini-3.5-flash-medium if available (default fallback)
-            logger.critical("[RoutingEngine] NO VALID MODELS PASSED FILTERS! Defaulting to google/gemini-3.5-flash-medium.")
-            fallback_model = ModelRegistry.get_model("gemini-3.5-flash-medium")
+            # Use gemini-3.5-flash if available (default fallback)
+            logger.critical("[RoutingEngine] NO VALID MODELS PASSED FILTERS! Defaulting to google/gemini-3.5-flash.")
+            fallback_model = ModelRegistry.get_model("gemini-3.5-flash")
             return fallback_model, {
                 "analysis": analysis,
                 "weights": weights,
                 "selected_score": 1.0,
-                "all_scores": {"gemini-3.5-flash-medium": 1.0},
+                "all_scores": {"gemini-3.5-flash": 1.0},
                 "scores_breakdown": {}
             }
 

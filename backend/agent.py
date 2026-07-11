@@ -145,7 +145,7 @@ async def planning_node(state: State, config: RunnableConfig):
         return {"plan": None}
 
     # Vetted, healthy, and cheap models to use as planning candidates
-    planner_candidates = ["gemini-3.5-flash-medium", "groq-llama-3.1-8b", "gemini-3.5-flash-low"]
+    planner_candidates = ["gemini-3.5-flash", "groq-llama-3.1-8b", "gemini-3.1-flash-lite"]
     
     prompt = (
         "You are an expert orchestrator. Create a brief, bulleted action plan to solve this request. "
@@ -196,11 +196,14 @@ async def planning_node(state: State, config: RunnableConfig):
 # Node 3: LLM Execution Node (handles tool loop + fallback retries)
 async def call_model_node(state: State, config: RunnableConfig):
     plan = state.get("plan")
-    routed_model = state.get("routed_model", "gemini-3.5-flash-medium")
+    routed_model = state.get("routed_model", "gemini-3.5-flash")
     complexity = state.get("complexity", "simple")
 
+    import datetime
+    current_time_str = datetime.datetime.now().strftime("%A, %B %d, %Y, %I:%M %p")
+    
     # Set up system instructions
-    system_instruction = "You are a helpful AI assistant."
+    system_instruction = f"You are a helpful AI assistant. The current date and time is {current_time_str}."
     if plan:
         system_instruction += f"\n\n[Execution Plan]\nFollow this plan to answer the query:\n{plan}"
 
@@ -283,8 +286,10 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
             temperature=0.5
         )
 
+        import datetime
+        current_time_str = datetime.datetime.now().strftime("%A, %B %d, %Y, %I:%M %p")
         system_prompt = (
-            "You are a master synthesis assistant. Review the entire conversation history, "
+            f"You are a master synthesis assistant. The current date and time is {current_time_str}. Review the entire conversation history, "
             "the original plan, and tool search results, and generate a polished, highly comprehensive "
             "final response. Organize it clearly using markdown headers, bullet points, and clean structures."
         )

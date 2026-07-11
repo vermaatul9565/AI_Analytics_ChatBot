@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import Mermaid from "./Mermaid";
 import styles from "./MarkdownRenderer.module.css";
 
 interface MarkdownRendererProps {
@@ -73,6 +74,10 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
             const language = match ? match[1] : "text";
 
+            if (language === "mermaid") {
+              return <Mermaid chart={codeString} />;
+            }
+
             return (
               <div className={styles.codeBlockWrapper}>
                 <div className={styles.codeBlockHeader}>
@@ -89,7 +94,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                     padding: "1rem",
                     fontSize: "0.85rem",
                     background: "#1a1b26",
-                  }}
+                  }}w
                   codeTagProps={{
                     style: {
                       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
