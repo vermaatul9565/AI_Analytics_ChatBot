@@ -25,13 +25,21 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
     thread_id: str
+    provider: str | None = None
+    model: str | None = None
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     async def event_generator():
         try:
-            # Define configuration containing thread_id for checkpoint memory persistence
-            config = {"configurable": {"thread_id": request.thread_id}}
+            # Define configuration containing thread_id for checkpoint memory persistence and dynamic model routing
+            config = {
+                "configurable": {
+                    "thread_id": request.thread_id,
+                    "provider": request.provider,
+                    "model": request.model,
+                }
+            }
             
             # Use LangGraph astream_events to listen to execution steps
             async for event in graph.astream_events(

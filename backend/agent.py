@@ -58,8 +58,16 @@ def web_search(query: str) -> str:
 
 # Define the node that calls the model
 async def call_model(state: State, config: RunnableConfig):
+    # Extract dynamic model/provider settings from graph config
+    configurable = config.get("configurable", {})
+    provider = configurable.get("provider")
+    model = configurable.get("model")
+    
     # Retrieve the model dynamically from the factory
-    llm = LLMFactory.get_chat_model().bind_tools([web_search])
+    llm = LLMFactory.get_chat_model(
+        provider_name=provider,
+        model_name=model
+    ).bind_tools([web_search])
     
     # We stream the LLM response to ensure stream events are emitted
     response = None
