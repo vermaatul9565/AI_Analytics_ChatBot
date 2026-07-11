@@ -2,12 +2,27 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Sparkles, MessageSquare } from "lucide-react";
+import MarkdownRenderer from "./MarkdownRenderer";
 import styles from "./ChatWindow.module.css";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  plan?: string;
+  reasoning?: string;
+  routing?: {
+    intent: string;
+    complexity: string;
+    routed_model: string;
+  };
+  metrics?: {
+    model: string;
+    complexity: string;
+    latency: number;
+    tokens: number;
+    cost: number;
+  };
 }
 
 interface ChatWindowProps {
@@ -128,6 +143,45 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
                       : msg
                   )
                 );
+              } else if (data.type === "plan_debug") {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsgId
+                      ? { ...msg, plan: (msg.plan || "") + data.content }
+                      : msg
+                  )
+                );
+              } else if (data.type === "reasoning_debug") {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsgId
+                      ? { ...msg, reasoning: (msg.reasoning || "") + data.content }
+                      : msg
+                  )
+                );
+              } else if (data.type === "routing_debug") {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsgId
+                      ? {
+                          ...msg,
+                          routing: {
+                            intent: data.content.intent,
+                            complexity: data.content.complexity,
+                            routed_model: data.content.routed_model
+                          }
+                        }
+                      : msg
+                  )
+                );
+              } else if (data.type === "metrics") {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsgId
+                      ? { ...msg, metrics: data.content }
+                      : msg
+                  )
+                );
               } else if (data.type === "error") {
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -226,14 +280,61 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
                   msg.role === "user" ? styles.bubbleUser : styles.bubbleAssistant
                 }`}
               >
-                {msg.role === "assistant" && msg.content === "" ? (
-                  <div className={styles.typingIndicator}>
-                    <div className={styles.dot}></div>
-                    <div className={styles.dot}></div>
-                    <div className={styles.dot}></div>
-                  </div>
-                ) : (
+                {msg.role === "user" ? (
                   msg.content
+                ) : (
+                  <div className={styles.assistantContainer}>
+                    {/* Routing Badge */}
+                    {msg.routing && (
+                      <div className={styles.routingBadge}>
+                        <Sparkles size={10} className={styles.routingIcon} />
+                        <span>Routed to <strong>{msg.routing.routed_model}</strong></span>
+                        <span className={styles.routingDetail}>
+                          &nbsp;({msg.routing.intent} • {msg.routing.complexity})
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Plan Block */}
+                    {msg.plan && (
+                      <div className={styles.planBlock}>
+                        <div className={styles.blockHeader}>📋 Execution Plan</div>
+                        <pre className={styles.blockContent}>{msg.plan}</pre>
+                      </div>
+                    )}
+
+                    {/* Thinking/Reasoning Block */}
+                    {msg.reasoning && (
+                      <div className={styles.reasoningBlock}>
+                        <div className={styles.blockHeader}>🧠 Thinking Process</div>
+                        <pre className={styles.blockContent}>{msg.reasoning}</pre>
+                      </div>
+                    )}
+
+                    {/* Main Content */}
+                    {msg.content === "" && !msg.plan && !msg.reasoning && !msg.routing ? (
+                      <div className={styles.typingIndicator}>
+                        <div className={styles.dot}></div>
+                        <div className={styles.dot}></div>
+                        <div className={styles.dot}></div>
+                      </div>
+                    ) : (
+                      <div className={styles.mainContent}>
+                        <MarkdownRenderer content={msg.content} />
+                      </div>
+                    )}
+
+                    {/* Metrics Footer */}
+                    {msg.metrics && (
+                      <div className={styles.metricsFooter}>
+                        <span>⚡ {msg.metrics.latency}s</span>
+                        <span className={styles.metricsSeparator}>•</span>
+                        <span>📝 {msg.metrics.tokens} tokens</span>
+                        <span className={styles.metricsSeparator}>•</span>
+                        <span>🪙 ${msg.metrics.cost.toFixed(5)}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

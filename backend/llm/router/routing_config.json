@@ -1,0 +1,43 @@
+{
+  "routing_policy": {
+    "weights": {
+      "quality": 0.40,
+      "cost": 0.20,
+      "latency": 0.20,
+      "reliability": 0.20
+    },
+    "default_preference": "balanced",
+    "presets": {
+      "speed": {
+        "quality": 0.10,
+        "cost": 0.10,
+        "latency": 0.60,
+        "reliability": 0.20
+      },
+      "quality": {
+        "quality": 0.70,
+        "cost": 0.05,
+        "latency": 0.05,
+        "reliability": 0.20
+      },
+      "cost": {
+        "quality": 0.10,
+        "cost": 0.70,
+        "latency": 0.10,
+        "reliability": 0.10
+      },
+      "balanced": {
+        "quality": 0.40,
+        "cost": 0.20,
+        "latency": 0.20,
+        "reliability": 0.20
+      }
+    }
+  },
+  "cost_limit_monthly": 50.0,
+  "preferred_models": {
+    "coding": "claude-sonnet-4.6",
+    "sql_generation": "gemini-3.5-flash-high",
+    "general_qa": "gemini-3.5-flash-medium"
+  }
+}

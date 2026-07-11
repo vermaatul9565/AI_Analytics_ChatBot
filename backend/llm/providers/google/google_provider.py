@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, AIMessageChunk
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import ChatResult, ChatGeneration, ChatGenerationChunk
 from llm.interfaces.base_provider import BaseModelProvider
 from llm.interfaces.base_chat_model import BaseChatModelInterface
@@ -132,10 +132,18 @@ class GoogleThoughtChatModel(BaseChatModelInterface):
         )
         
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-        gemini_contents = convert_messages_to_gemini(messages)
+        # Extract system instruction if passed as SystemMessage
+        system_msgs = [m for m in messages if isinstance(m, SystemMessage)]
+        if system_msgs:
+            system_instruction = system_msgs[0].content
+            filtered_messages = [m for m in messages if not isinstance(m, SystemMessage)]
+        else:
+            current_date = datetime.now().strftime("%A, %B %d, %Y")
+            system_instruction = f"You are a helpful AI assistant. The current date is {current_date}."
+            filtered_messages = messages
+
+        gemini_contents = convert_messages_to_gemini(filtered_messages)
         genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
-        current_date = datetime.now().strftime("%A, %B %d, %Y")
-        system_instruction = f"You are a helpful AI assistant. The current date is {current_date}."
         model = genai.GenerativeModel(self.model_name, system_instruction=system_instruction)
         
         tools = format_tools_for_gemini(kwargs.get("tools", None))
@@ -149,10 +157,18 @@ class GoogleThoughtChatModel(BaseChatModelInterface):
         return ChatResult(generations=[ChatGeneration(message=ai_msg)])
         
     async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
-        gemini_contents = convert_messages_to_gemini(messages)
+        # Extract system instruction if passed as SystemMessage
+        system_msgs = [m for m in messages if isinstance(m, SystemMessage)]
+        if system_msgs:
+            system_instruction = system_msgs[0].content
+            filtered_messages = [m for m in messages if not isinstance(m, SystemMessage)]
+        else:
+            current_date = datetime.now().strftime("%A, %B %d, %Y")
+            system_instruction = f"You are a helpful AI assistant. The current date is {current_date}."
+            filtered_messages = messages
+
+        gemini_contents = convert_messages_to_gemini(filtered_messages)
         genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
-        current_date = datetime.now().strftime("%A, %B %d, %Y")
-        system_instruction = f"You are a helpful AI assistant. The current date is {current_date}."
         model = genai.GenerativeModel(self.model_name, system_instruction=system_instruction)
         
         tools = format_tools_for_gemini(kwargs.get("tools", None))
