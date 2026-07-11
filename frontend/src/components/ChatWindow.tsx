@@ -21,9 +21,15 @@ const UNIFIED_MODELS = [
   { id: "gemini-3.5-flash-high", name: "Gemini 3.5 Flash (High)" },
   { id: "gemini-3.1-pro-low", name: "Gemini 3.1 Pro (Low)" },
   { id: "gemini-3.1-pro-high", name: "Gemini 3.1 Pro (High)" },
-  { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6 (Thinking)" },
-  { id: "claude-opus-4.6", name: "Claude Opus 4.6 (Thinking)" },
-  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni (Medium)" },
+  { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6 (Requires API Key)" },
+  { id: "claude-sonnet-4.7", name: "Claude Sonnet 4.7 (Requires API Key)" },
+  { id: "claude-opus-4.6", name: "Claude Opus 4.6 (Requires API Key)" },
+  { id: "claude-opus-4.7", name: "Claude Opus 4.7 (Requires API Key)" },
+  { id: "claude-opus-4.8", name: "Claude Opus 4.8 (Requires API Key)" },
+  { id: "claude-fable-5", name: "Claude Fable 5 (Requires API Key)" },
+  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni (Requires API Key)" },
+  { id: "gpt-5.5-omni", name: "GPT 5.5 Omni (Requires API Key)" },
+  { id: "gpt-5.6-omni", name: "GPT 5.6 Omni (Requires API Key)" },
   { id: "groq-llama-3.3-70b", name: "Llama 3.3 70B (Groq)" },
   { id: "groq-llama-3.1-8b", name: "Llama 3.1 8B (Groq)" }
 ];
