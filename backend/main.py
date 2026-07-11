@@ -32,6 +32,9 @@ class ChatRequest(BaseModel):
 async def chat_endpoint(request: ChatRequest):
     async def event_generator():
         try:
+            # Log incoming request parameters for routing audit
+            logger.info(f"[API] ChatRequest: message='{request.message}', model='{request.model}', provider='{request.provider}'")
+            
             # Define configuration containing thread_id for checkpoint memory persistence and dynamic model routing
             config = {
                 "configurable": {

@@ -71,7 +71,7 @@ async def call_model(state: State, config: RunnableConfig):
         # Extract the last user message prompt
         user_prompt = ""
         for msg in reversed(state["messages"]):
-            if msg.type == "user":
+            if msg.type in ["human", "user"]:
                 user_prompt = msg.content
                 break
         
