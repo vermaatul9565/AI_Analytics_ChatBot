@@ -109,8 +109,16 @@ def extract_and_save_memories(user_id: str, user_message: str, assistant_respons
                     stmt = select(UserMemory.embedding.cosine_distance(vector)).where(UserMemory.id == similar_mem.id)
                     dist = db.execute(stmt).scalar()
                     if dist is not None and dist < 0.15:
-                        logger.info(f"[MemoryService] Skipping similar fact: '{fact}' (distance: {dist:.3f} to '{similar_mem.content}')")
-                        continue
+                        if similar_mem.content.strip().lower() == fact.lower():
+                            # Exact same fact — skip
+                            logger.info(f"[MemoryService] Skipping identical fact: '{fact}' (distance: {dist:.3f})")
+                            continue
+                        else:
+                            # Similar but different — this is a correction/update
+                            logger.info(f"[MemoryService] Updating fact: '{similar_mem.content}' → '{fact}' (distance: {dist:.3f})")
+                            similar_mem.content = fact
+                            similar_mem.embedding = vector
+                            continue
                 
                 new_memory = UserMemory(
                     user_id=user_id,
