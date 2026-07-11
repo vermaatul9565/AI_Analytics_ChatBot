@@ -14,26 +14,17 @@ interface ChatWindowProps {
   threadId: string;
 }
 
-const PROVIDERS = [
-  { id: "google", name: "Google Gemini" },
-  { id: "openai", name: "OpenAI GPT" },
-  { id: "anthropic", name: "Anthropic Claude" }
+const UNIFIED_MODELS = [
+  { id: "auto", name: "Auto Mode (Intelligent)" },
+  { id: "gemini-3.5-flash-low", name: "Gemini 3.5 Flash (Low)" },
+  { id: "gemini-3.5-flash-medium", name: "Gemini 3.5 Flash (Medium)" },
+  { id: "gemini-3.5-flash-high", name: "Gemini 3.5 Flash (High)" },
+  { id: "gemini-3.1-pro-low", name: "Gemini 3.1 Pro (Low)" },
+  { id: "gemini-3.1-pro-high", name: "Gemini 3.1 Pro (High)" },
+  { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6 (Thinking)" },
+  { id: "claude-opus-4.6", name: "Claude Opus 4.6 (Thinking)" },
+  { id: "gpt-4.6-omni", name: "GPT 4.6 Omni (Medium)" }
 ];
-
-const MODELS: Record<string, { id: string; name: string }[]> = {
-  google: [
-    { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" }
-  ],
-  openai: [
-    { id: "gpt-4o", name: "GPT-4o (Frontier)" },
-    { id: "gpt-4-turbo", name: "GPT-4 Turbo" }
-  ],
-  anthropic: [
-    { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" },
-    { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" }
-  ]
-};
 
 export default function ChatWindow({ threadId }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,8 +32,7 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   
-  const [selectedProvider, setSelectedProvider] = useState<string>("google");
-  const [selectedModel, setSelectedModel] = useState<string>("gemini-3.1-flash-lite");
+  const [selectedModel, setSelectedModel] = useState<string>("auto");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -55,12 +45,6 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
   useEffect(() => {
     setMessages([]);
   }, [threadId]);
-
-  const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const prov = e.target.value;
-    setSelectedProvider(prov);
-    setSelectedModel(MODELS[prov][0].id);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +80,6 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
         body: JSON.stringify({
           message: userMessageContent,
           thread_id: threadId,
-          provider: selectedProvider,
           model: selectedModel
         }),
       });
@@ -176,35 +159,9 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
           <h2 className={styles.title}>Assistant Node</h2>
           <span className={styles.subtitle}>Session: {threadId || "Initializing..."}</span>
         </div>
-        <div className={styles.selectors}>
-          <div className={styles.selectWrapper}>
-            <select
-              className={styles.select}
-              value={selectedProvider}
-              onChange={handleProviderChange}
-              disabled={isStreaming}
-            >
-              {PROVIDERS.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.selectWrapper}>
-            <select
-              className={styles.select}
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={isStreaming}
-            >
-              {MODELS[selectedProvider].map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.badge}>
-            <div className={styles.badgeDot}></div>
-            <span>LangGraph Engine</span>
-          </div>
+        <div className={styles.badge}>
+          <div className={styles.badgeDot}></div>
+          <span>LangGraph Engine</span>
         </div>
       </header>
 
@@ -288,6 +245,20 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
           onBlur={() => setIsFocused(false)}
           disabled={isStreaming || !threadId}
         />
+        
+        <div className={styles.inputModelSelectWrapper}>
+          <select
+            className={styles.inputModelSelect}
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={isStreaming || !threadId}
+          >
+            {UNIFIED_MODELS.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+
         <button type="submit" className={styles.sendButton} disabled={!input.trim() || isStreaming || !threadId}>
           <Send size={16} />
         </button>

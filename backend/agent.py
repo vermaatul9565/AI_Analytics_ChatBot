@@ -16,9 +16,10 @@ from langgraph.prebuilt import ToolNode, tools_condition
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from llm.factory.factory import LLMFactory
+from llm.router.router import LLMRouter
 
 # Load environment variables using absolute path
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
 # Define the state structure.
 # Annotating with add_messages ensures that new messages are appended to the history.
@@ -28,24 +29,26 @@ class State(TypedDict):
 # Define the web search tool using Tavily API
 @tool
 def web_search(query: str) -> str:
-    """Search the web for current or real-time information on a topic."""
-    api_key = os.environ.get("TAVILY_API_KEY") or os.environ.get("TAVILTY_API_KEY")
-    if not api_key:
-        return "Tavily API key is not configured. Please add TAVILY_API_KEY to your environment."
-    
+    """Executes a real-time web search for the query using the Tavily Search API. Useful to answer current/news events."""
     try:
-        response = httpx.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": api_key,
-                "query": query,
-                "search_depth": "basic",
-                "max_results": 3
-            },
-            timeout=10.0
-        )
-        response.raise_for_status()
-        results = response.json().get("results", [])
+        tavily_api_key = os.environ.get("TAVILY_API_KEY")
+        if not tavily_api_key:
+            return "Error: TAVILY_API_KEY is not set in environment."
+            
+        with httpx.Client(timeout=15.0) as client:
+            response = client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": tavily_api_key,
+                    "query": query,
+                    "search_depth": "basic",
+                    "max_results": 3,
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("results", [])
+            
         if not results:
             return "No search results found."
         
@@ -63,6 +66,22 @@ async def call_model(state: State, config: RunnableConfig):
     provider = configurable.get("provider")
     model = configurable.get("model")
     
+    # If Auto mode is selected, route semantically based on query content
+    if model == "auto":
+        # Extract the last user message prompt
+        user_prompt = ""
+        for msg in reversed(state["messages"]):
+            if msg.type == "user":
+                user_prompt = msg.content
+                break
+        
+        # If we found a user prompt, route it semantically
+        if user_prompt:
+            model = LLMRouter.route_query(user_prompt)
+            provider = None # Factory will look up provider from model map
+        else:
+            model = "gemini-3.5-flash-medium" # Default fallback
+            
     # Retrieve the model dynamically from the factory
     llm = LLMFactory.get_chat_model(
         provider_name=provider,
