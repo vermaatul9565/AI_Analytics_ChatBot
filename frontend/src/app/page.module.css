@@ -200,3 +200,63 @@
   border-color: rgba(59, 130, 246, 0.2) !important;
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.05) !important;
 }
+
+.userProfileArea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.activeUserLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.noHistoryText {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1rem 0;
+  font-style: italic;
+}
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  text-align: left;
+}
+
+.settingsButton:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.settingsButtonActive {
+  background: rgba(6, 182, 212, 0.08) !important;
+  color: var(--accent-secondary) !important;
+  border-color: rgba(6, 182, 212, 0.2) !important;
+}
+

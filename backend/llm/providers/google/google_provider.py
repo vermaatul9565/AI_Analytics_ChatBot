@@ -21,27 +21,38 @@ def convert_messages_to_gemini(messages):
                 Content(role="user", parts=[Part(text=msg.content)])
             )
         elif isinstance(msg, AIMessage):
-            parts = []
-            if msg.content:
-                parts.append(Part(text=msg.content))
-            
-            # Map tool calls back
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                for tc in msg.tool_calls:
-                    fc = FunctionCall(
-                        name=tc["name"],
-                        args=tc["args"]
-                    )
-                    part = Part(function_call=fc)
-                    
-                    # Restore thought signature to the Part!
-                    thought_sig = msg.additional_kwargs.get("thought_signature")
-                    if thought_sig:
-                        part.thought_signature = thought_sig
+            # If we have base64 serialized raw parts, restore them to preserve thought signatures
+            raw_parts_b64 = msg.additional_kwargs.get("raw_parts")
+            if raw_parts_b64:
+                import base64
+                parts = []
+                for part_b64 in raw_parts_b64:
+                    p = Part()
+                    p._pb.ParseFromString(base64.b64decode(part_b64))
+                    parts.append(p)
+                gemini_contents.append(Content(role="model", parts=parts))
+            else:
+                parts = []
+                if msg.content:
+                    parts.append(Part(text=msg.content))
+                
+                # Map tool calls back
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        fc = FunctionCall(
+                            name=tc["name"],
+                            args=tc["args"]
+                        )
+                        part = Part(function_call=fc)
                         
-                    parts.append(part)
-            
-            gemini_contents.append(Content(role="model", parts=parts))
+                        # Restore thought signature to the Part!
+                        thought_sig = msg.additional_kwargs.get("thought_signature")
+                        if thought_sig:
+                            part.thought_signature = thought_sig
+                            
+                        parts.append(part)
+                
+                gemini_contents.append(Content(role="model", parts=parts))
             
         elif isinstance(msg, ToolMessage):
             fr = FunctionResponse(
@@ -56,11 +67,17 @@ def convert_messages_to_gemini(messages):
 
 # Helper to convert Gemini candidate content to LangChain message
 def convert_gemini_to_message(candidate_content):
+    import base64
     content = ""
     tool_calls = []
     additional_kwargs = {}
     
+    # Base64 serialize raw parts to preserve unknown fields/thought signatures
+    raw_parts = []
     for part in candidate_content.parts:
+        part_bytes = part._pb.SerializeToString()
+        raw_parts.append(base64.b64encode(part_bytes).decode("utf-8"))
+        
         if part.text:
             content += part.text
         if part.function_call:
@@ -77,6 +94,7 @@ def convert_gemini_to_message(candidate_content):
                 "type": "tool_call"
             })
             
+    additional_kwargs["raw_parts"] = raw_parts
     ai_msg = AIMessage(content=content, additional_kwargs=additional_kwargs)
     if tool_calls:
         ai_msg.tool_calls = tool_calls
@@ -86,36 +104,25 @@ def format_tools_for_gemini(tools):
     if not tools:
         return None
         
-    function_declarations = []
+    formatted_tools = []
     for tool_obj in tools:
-        if hasattr(tool_obj, "name") and hasattr(tool_obj, "description"):
-            properties = {}
-            for arg_name, arg_info in tool_obj.args.items():
-                arg_type = arg_info.get("type", "string").upper()
-                if arg_type not in ["STRING", "NUMBER", "INTEGER", "BOOLEAN", "ARRAY", "OBJECT"]:
-                    arg_type = "STRING"
-                if arg_type == "INTEGER":
-                    arg_type = "NUMBER"
-                    
-                properties[arg_name] = {
-                    "type": arg_type,
-                    "description": arg_info.get("description", "")
-                }
-                
-            decl = {
-                "name": tool_obj.name,
-                "description": tool_obj.description,
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": properties,
-                    "required": list(tool_obj.args.keys())
-                }
-            }
-            function_declarations.append(decl)
+        if hasattr(tool_obj, "func") and tool_obj.func:
+            func = tool_obj.func
+            # Preserve langchain metadata names and docs
+            if hasattr(tool_obj, "name") and tool_obj.name:
+                func.__name__ = tool_obj.name
+            if hasattr(tool_obj, "description") and tool_obj.description:
+                func.__doc__ = tool_obj.description
+            formatted_tools.append(func)
         else:
-            function_declarations.append(tool_obj)
+            # Fallback wrapper for class-based tools
+            def tool_wrapper(*args, **kwargs):
+                return tool_obj._run(*args, **kwargs)
+            tool_wrapper.__name__ = tool_obj.name
+            tool_wrapper.__doc__ = tool_obj.description
+            formatted_tools.append(tool_wrapper)
             
-    return [{"function_declarations": function_declarations}]
+    return formatted_tools
 
 class GoogleThoughtChatModel(BaseChatModelInterface):
     """Google Gemini custom chat model that handles thought_signatures."""
@@ -146,7 +153,7 @@ class GoogleThoughtChatModel(BaseChatModelInterface):
             filtered_messages = messages
 
         gemini_contents = convert_messages_to_gemini(filtered_messages)
-        genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
+        genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"), transport="rest")
         model = genai.GenerativeModel(self.model_name, system_instruction=system_instruction)
         
         tools = format_tools_for_gemini(kwargs.get("tools", None))
@@ -172,18 +179,18 @@ class GoogleThoughtChatModel(BaseChatModelInterface):
 
         gemini_contents = convert_messages_to_gemini(filtered_messages)
         logger.info(f"[GoogleProvider] Converted messages: {gemini_contents}")
-        genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"))
+        genai.configure(api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"), transport="rest")
         model = genai.GenerativeModel(self.model_name, system_instruction=system_instruction)
         
         tools = format_tools_for_gemini(kwargs.get("tools", None))
-        response_stream = await model.generate_content_async(
+        response_stream = model.generate_content(
             contents=gemini_contents,
             generation_config={"temperature": self.temperature},
             tools=tools,
             stream=True
         )
         
-        async for chunk in response_stream:
+        for chunk in response_stream:
             if chunk.candidates and chunk.candidates[0].content:
                 candidate_content = chunk.candidates[0].content
                 content_text = ""
@@ -219,8 +226,10 @@ class GoogleModelProvider(BaseModelProvider):
     def get_chat_model(self, model_name: str, temperature: float, **kwargs) -> BaseChatModelInterface:
         return GoogleThoughtChatModel(model_name=model_name, temperature=temperature, **kwargs)
 
-    def get_embedding_model(self, model_name: str, **kwargs):
-        raise NotImplementedError("Embedding model not implemented for Google provider yet.")
+    def get_embedding_model(self, model_name: str = "text-embedding-004", **kwargs):
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        return GoogleGenerativeAIEmbeddings(model=model_name, google_api_key=api_key)
 
     def get_vision_model(self, model_name: str, **kwargs):
         raise NotImplementedError("Vision model not implemented for Google provider yet.")

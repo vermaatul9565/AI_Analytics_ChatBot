@@ -202,8 +202,44 @@ async def call_model_node(state: State, config: RunnableConfig):
     import datetime
     current_time_str = datetime.datetime.now().strftime("%A, %B %d, %Y, %I:%M %p")
     
+    # Load user memory & settings
+    configurable = config.get("configurable", {})
+    user_id = configurable.get("user_id")
+    custom_instructions = ""
+    memories_str = ""
+    
+    if user_id:
+        from database.connection import SessionLocal
+        from database.models import UserSetting
+        from memory.memory_service import retrieve_relevant_memories
+        
+        db = SessionLocal()
+        try:
+            settings = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
+            if settings and settings.system_instructions:
+                custom_instructions = settings.system_instructions
+                
+            user_prompt = ""
+            for msg in reversed(state["messages"]):
+                if msg.type in ["human", "user"]:
+                    user_prompt = msg.content
+                    break
+            
+            if user_prompt:
+                memories = retrieve_relevant_memories(db, user_id, user_prompt, limit=5)
+                if memories:
+                    memories_str = "\n".join([f"- {m}" for m in memories])
+        except Exception as db_err:
+            logger.error(f"[AgentNode] Error loading context from DB: {db_err}", exc_info=True)
+        finally:
+            db.close()
+            
     # Set up system instructions
     system_instruction = f"You are a helpful AI assistant. The current date and time is {current_time_str}."
+    if custom_instructions:
+        system_instruction += f"\n\n[User Custom Instructions]\n{custom_instructions}"
+    if memories_str:
+        system_instruction += f"\n\n[User Profile & Context (Retrieved Memories)]\n{memories_str}\n\nUse these retrieved facts to personalize your response where appropriate. Do not repeat them if not relevant."
     if plan:
         system_instruction += f"\n\n[Execution Plan]\nFollow this plan to answer the query:\n{plan}"
 
@@ -236,8 +272,9 @@ async def call_model_node(state: State, config: RunnableConfig):
                 temperature=0.7
             )
             
-            # Bind tools
-            llm = llm.bind_tools([web_search])
+            # Bind tools if supported
+            if meta.supports_tool_calling:
+                llm = llm.bind_tools([web_search])
             
             # Prepend system instruction to conversation history
             messages = [SystemMessage(content=system_instruction)] + list(state["messages"])
@@ -277,6 +314,38 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
                 synthesis_model = candidate
                 break
 
+    # Load user memory & settings
+    configurable = config.get("configurable", {})
+    user_id = configurable.get("user_id")
+    custom_instructions = ""
+    memories_str = ""
+    
+    if user_id:
+        from database.connection import SessionLocal
+        from database.models import UserSetting
+        from memory.memory_service import retrieve_relevant_memories
+        
+        db = SessionLocal()
+        try:
+            settings = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
+            if settings and settings.system_instructions:
+                custom_instructions = settings.system_instructions
+                
+            user_prompt = ""
+            for msg in reversed(state["messages"]):
+                if msg.type in ["human", "user"]:
+                    user_prompt = msg.content
+                    break
+            
+            if user_prompt:
+                memories = retrieve_relevant_memories(db, user_id, user_prompt, limit=5)
+                if memories:
+                    memories_str = "\n".join([f"- {m}" for m in memories])
+        except Exception as db_err:
+            logger.error(f"[SynthesisNode] Error loading context from DB: {db_err}", exc_info=True)
+        finally:
+            db.close()
+
     logger.info(f"[SynthesisNode] Compiling final response using model '{synthesis_model}'")
     try:
         meta = ModelRegistry.get_model(synthesis_model)
@@ -293,6 +362,10 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
             "the original plan, and tool search results, and generate a polished, highly comprehensive "
             "final response. Organize it clearly using markdown headers, bullet points, and clean structures."
         )
+        if custom_instructions:
+            system_prompt += f"\n\n[User Custom Instructions]\n{custom_instructions}"
+        if memories_str:
+            system_prompt += f"\n\n[User Profile & Context (Retrieved Memories)]\n{memories_str}\n\nUse these retrieved facts to personalize your response where appropriate."
         if plan:
             system_prompt += f"\n\nPlan was: {plan}"
 
@@ -310,6 +383,7 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
         logger.error(f"[SynthesisNode] Synthesis failed ({e}). Returning last message directly.")
         # Fallback: return the last message as is
         return {"messages": []}
+
 
 
 # Routing Condition Edges

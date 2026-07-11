@@ -7,7 +7,9 @@ class OllamaModelProvider(BaseModelProvider):
     def get_chat_model(self, model_name: str, temperature: float, **kwargs) -> BaseChatModel:
         try:
             from langchain_community.chat_models import ChatOllama
-            return ChatOllama(model=model_name, temperature=temperature, **kwargs)
+            import os
+            base_url = os.environ.get("OLLAMA_HOST") or os.environ.get("OLLAMA_BASE_URL") or "http://host.docker.internal:11434"
+            return ChatOllama(base_url=base_url, model=model_name, temperature=temperature, **kwargs)
         except ImportError:
             raise ImportError(
                 "langchain-community is required to use the ollama provider. "

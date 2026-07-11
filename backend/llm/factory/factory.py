@@ -23,6 +23,8 @@ class LLMFactory:
         "gpt-5.6-omni": {"provider": "openai", "model": "gpt-4o"},
         "groq-llama-3.3-70b": {"provider": "groq", "model": "llama-3.3-70b-versatile"},
         "groq-llama-3.1-8b": {"provider": "groq", "model": "llama-3.1-8b-instant"},
+        "ollama-qwen2.5-coder-14b": {"provider": "ollama", "model": "qwen2.5-coder:14b"},
+        "ollama-gemma4-e4b": {"provider": "ollama", "model": "gemma4:e4b"},
     }
     
     @staticmethod

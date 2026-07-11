@@ -309,6 +309,42 @@ class ModelRegistry:
             quality_score=0.45,
             preferred_categories=["general_qa", "summarization", "writing"]
         ),
+        "ollama-qwen2.5-coder-14b": ModelMetadata(
+            id="ollama-qwen2.5-coder-14b",
+            provider="ollama",
+            model_name="qwen2.5-coder:14b",
+            context_window=32768,
+            supports_vision=False,
+            supports_reasoning=False,
+            supports_tool_calling=False,
+            supports_json_mode=True,
+            supports_streaming=True,
+            input_token_cost_per_million=0.0,
+            output_token_cost_per_million=0.0,
+            latency_estimate_seconds=0.8,
+            reliability_score=0.98,
+            max_output_tokens=4096,
+            quality_score=0.78,
+            preferred_categories=["coding", "debugging", "data_engineering", "sql_generation", "tool_execution"]
+        ),
+        "ollama-gemma4-e4b": ModelMetadata(
+            id="ollama-gemma4-e4b",
+            provider="ollama",
+            model_name="gemma4:e4b",
+            context_window=8192,
+            supports_vision=False,
+            supports_reasoning=False,
+            supports_tool_calling=False,
+            supports_json_mode=True,
+            supports_streaming=True,
+            input_token_cost_per_million=0.0,
+            output_token_cost_per_million=0.0,
+            latency_estimate_seconds=0.6,
+            reliability_score=0.95,
+            max_output_tokens=2048,
+            quality_score=0.65,
+            preferred_categories=["general_qa", "summarization", "writing"]
+        ),
     }
 
     @classmethod

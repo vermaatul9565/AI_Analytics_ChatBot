@@ -1,26 +1,93 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import ChatWindow from "@/components/ChatWindow";
-import { MessageSquare, Plus, BrainCircuit, BarChart2, Database, CircleDot, Sun, Moon, Monitor } from "lucide-react";
+import SettingsPanel from "@/components/SettingsPanel";
+import { MessageSquare, Plus, BrainCircuit, BarChart2, Database, CircleDot, Sun, Moon, Monitor, Settings, Users } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function Home() {
   const [threadId, setThreadId] = useState<string>("");
   const [threads, setThreads] = useState<{ id: string; label: string }[]>([]);
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
+  const [activeUserId, setActiveUserId] = useState<string>("");
+  const [activeUsername, setActiveUsername] = useState<string>("");
+  const [userRole, setUserRole] = useState<string>("user");
+  const [view, setView] = useState<"chat" | "settings">("chat");
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // Generate initial session ID and thread list on client mount
+  const router = useRouter();
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    const initialId = `session-${Math.random().toString(36).substring(2, 11)}`;
-    setThreadId(initialId);
-    setThreads([{ id: initialId, label: "Current Active Chat" }]);
-    
+    const storedUserId = localStorage.getItem("activeUserId");
+    const storedUsername = localStorage.getItem("activeUsername");
+    const storedRole = localStorage.getItem("role");
+
+    if (!storedUserId || !storedUsername) {
+      router.push("/login");
+    } else {
+      setActiveUserId(storedUserId);
+      setActiveUsername(storedUsername);
+      setUserRole(storedRole || "user");
+      setIsAuthChecking(false);
+    }
+
     // Load theme setting
     const savedTheme = (localStorage.getItem("theme") as "light" | "dark" | "system") || "system";
     setTheme(savedTheme);
     applyTheme(savedTheme);
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    if (!activeUserId) return;
+    
+    const refreshAndLoad = async () => {
+      await fetchUserThreads(activeUserId);
+      await fetchUserSettings(activeUserId);
+    };
+    
+    refreshAndLoad();
+  }, [activeUserId]);
+
+  const fetchUserThreads = async (userId: string) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/users/${userId}/threads`);
+      if (res.ok) {
+        const data = await res.json();
+        const formattedThreads = data.map((t: any) => ({
+          id: t.id,
+          label: t.title || "Untitled Chat"
+        }));
+        setThreads(formattedThreads);
+        
+        if (formattedThreads.length > 0) {
+          setThreadId(formattedThreads[0].id);
+        } else {
+          const initialId = `session-${Math.random().toString(36).substring(2, 11)}`;
+          setThreadId(initialId);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch user threads:", err);
+    }
+  };
+
+  const fetchUserSettings = async (userId: string) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/users/${userId}/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.theme) {
+          setTheme(data.theme);
+          applyTheme(data.theme);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load settings:", err);
+    }
+  };
 
   const applyTheme = (t: "light" | "dark" | "system") => {
     const root = document.documentElement;
@@ -65,7 +132,17 @@ export default function Home() {
     const newId = `session-${Math.random().toString(36).substring(2, 11)}`;
     setThreadId(newId);
     setThreads(prev => [{ id: newId, label: `Chat Session ${prev.length + 1}` }, ...prev]);
+    setView("chat");
   };
+
+  const handleSelectThread = (id: string) => {
+    setThreadId(id);
+    setView("chat");
+  };
+
+  if (isAuthChecking) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <main className={styles.container}>
@@ -73,6 +150,12 @@ export default function Home() {
         <div className={styles.logoArea}>
           <BrainCircuit className={styles.logoIcon} size={28} />
           <span className={styles.logoText}>DataMind AI</span>
+        </div>
+
+        {/* User Switcher Info */}
+        <div className={styles.userProfileArea}>
+          <Users size={16} className={styles.userProfileIcon} />
+          <span className={styles.activeUserLabel}>{activeUsername}</span>
         </div>
 
         <button className={styles.newChatButton} onClick={handleNewChat}>
@@ -83,19 +166,32 @@ export default function Home() {
         <div className={styles.historySection}>
           <h3 className={styles.historyTitle}>Active Chats</h3>
           <div className={styles.threadList}>
-            {threads.map(t => (
-              <div
-                key={t.id}
-                className={t.id === threadId ? styles.threadItemActive : styles.threadItem}
-                onClick={() => setThreadId(t.id)}
-              >
-                <MessageSquare size={16} />
-                <span className={styles.threadText}>{t.label}</span>
-                {t.id === threadId && <CircleDot size={8} style={{ color: "var(--accent-secondary)", marginLeft: "auto" }} />}
-              </div>
-            ))}
+            {threads.length === 0 ? (
+              <span className={styles.noHistoryText}>No threads found</span>
+            ) : (
+              threads.map(t => (
+                <div
+                  key={t.id}
+                  className={t.id === threadId && view === "chat" ? styles.threadItemActive : styles.threadItem}
+                  onClick={() => handleSelectThread(t.id)}
+                >
+                  <MessageSquare size={16} />
+                  <span className={styles.threadText}>{t.label}</span>
+                  {t.id === threadId && view === "chat" && <CircleDot size={8} style={{ color: "var(--accent-secondary)", marginLeft: "auto" }} />}
+                </div>
+              ))
+            )}
           </div>
         </div>
+
+        {/* Settings Toggle Link */}
+        <button 
+          className={`${styles.settingsButton} ${view === "settings" ? styles.settingsButtonActive : ""}`}
+          onClick={() => setView(view === "chat" ? "settings" : "chat")}
+        >
+          <Settings size={16} />
+          {view === "chat" ? "Settings & Memories" : "Back to Chat"}
+        </button>
 
         <div className={styles.themeSection}>
           <h3 className={styles.themeTitle}>Theme Mode</h3>
@@ -141,7 +237,16 @@ export default function Home() {
       </div>
 
       <div className={styles.mainContent}>
-        <ChatWindow threadId={threadId} />
+        {view === "chat" ? (
+          <ChatWindow threadId={threadId} activeUserId={activeUserId} />
+        ) : (
+          <SettingsPanel
+            activeUserId={activeUserId}
+            userRole={userRole}
+            onClose={() => setView("chat")}
+            onThemeChanged={handleThemeChange}
+          />
+        )}
       </div>
     </main>
   );

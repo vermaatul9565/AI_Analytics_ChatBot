@@ -3,13 +3,22 @@ import logging
 import os
 import time
 from datetime import datetime
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
+from sqlalchemy.orm import Session
+
+# Ensure backend path is configured
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from agent import graph
 from llm.registry.model_registry import ModelRegistry
+from database.connection import init_db, get_db
+from database.models import User, UserSetting, ChatThread, ChatMessage, UserMemory
+from memory.memory_service import extract_and_save_memories, retrieve_relevant_memories, generate_embedding
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -26,15 +35,199 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def startup_event():
+    init_db()
+
+# Pydantic schemas
+class AuthRequest(BaseModel):
+    username: str
+
+class UserAdminCreate(BaseModel):
+    username: str
+    role: str = "user"
+
+class UserCreate(BaseModel):
+    id: str
+    username: str
+
+class UserSettingsUpdate(BaseModel):
+    theme: str | None = None
+    preferred_model: str | None = None
+    system_instructions: str | None = None
+
+class MemoryCreate(BaseModel):
+    content: str
+
 class ChatRequest(BaseModel):
     message: str
     thread_id: str
+    user_id: str | None = None
     provider: str | None = None
     model: str | None = None
 
+# Background task to save messages to DB and extract memories
+def save_chat_and_extract_memory(user_id: str | None, thread_id: str, user_message: str, assistant_response: str, plan: str, reasoning: str, routing: dict, metrics: dict):
+    from database.connection import SessionLocal
+    
+    if not user_id:
+        logger.warning("[Background] No user_id provided. Skipping database save & extraction.")
+        return
+        
+    db = SessionLocal()
+    try:
+        # Check if thread exists, create if not
+        thread = db.query(ChatThread).filter(ChatThread.id == thread_id).first()
+        if not thread:
+            # Generate simple title
+            title = user_message[:30] + "..." if len(user_message) > 30 else user_message
+            thread = ChatThread(id=thread_id, user_id=user_id, title=title)
+            db.add(thread)
+            db.commit()
+            
+        # Save Human message
+        human_msg = ChatMessage(
+            thread_id=thread_id,
+            role="user",
+            content=user_message
+        )
+        db.add(human_msg)
+        
+        # Save Assistant message
+        assistant_msg = ChatMessage(
+            thread_id=thread_id,
+            role="assistant",
+            content=assistant_response,
+            plan=plan if plan else None,
+            reasoning=reasoning if reasoning else None,
+            routing=routing,
+            metrics=metrics
+        )
+        db.add(assistant_msg)
+        db.commit()
+        logger.info(f"[Background] Saved chat turn in database for thread '{thread_id}'")
+        
+    except Exception as e:
+        logger.error(f"[Background] Error saving chat turn: {e}", exc_info=True)
+    finally:
+        db.close()
+        
+    # Extract memory
+    extract_and_save_memories(user_id, user_message, assistant_response)
+
+# --- Database API Routes ---
+
+@app.post("/api/auth/login")
+def login(req: AuthRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == req.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.post("/api/auth/signup")
+def signup(req: AuthRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.username == req.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    import random
+    import string
+    new_id = "user-" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=9))
+    
+    # Auto-assign admin if it's the very first user
+    user_count = db.query(User).count()
+    role = "admin" if user_count == 0 else "user"
+    
+    new_user = User(id=new_id, username=req.username, role=role)
+    db.add(new_user)
+    
+    default_settings = UserSetting(user_id=new_id, theme="system", preferred_model="auto", system_instructions="")
+    db.add(default_settings)
+    db.commit()
+    return new_user
+
+@app.get("/api/users")
+def list_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return users
+
+@app.post("/api/admin/users")
+def create_user_admin(user_in: UserAdminCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.username == user_in.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+        
+    import random
+    import string
+    new_id = "user-" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=9))
+    
+    new_user = User(id=new_id, username=user_in.username, role=user_in.role)
+    db.add(new_user)
+    
+    default_settings = UserSetting(user_id=new_id, theme="system", preferred_model="auto", system_instructions="")
+    db.add(default_settings)
+    db.commit()
+    return new_user
+
+@app.get("/api/users/{user_id}/settings")
+def get_user_settings(user_id: str, db: Session = Depends(get_db)):
+    settings = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
+    if not settings:
+        settings = UserSetting(user_id=user_id, theme="system", preferred_model="auto", system_instructions="")
+        db.add(settings)
+        db.commit()
+    return settings
+
+@app.put("/api/users/{user_id}/settings")
+def update_user_settings(user_id: str, settings_in: UserSettingsUpdate, db: Session = Depends(get_db)):
+    settings = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
+    if not settings:
+        settings = UserSetting(user_id=user_id, theme="system", preferred_model="auto", system_instructions="")
+        db.add(settings)
+        
+    if settings_in.theme is not None:
+        settings.theme = settings_in.theme
+    if settings_in.preferred_model is not None:
+        settings.preferred_model = settings_in.preferred_model
+    if settings_in.system_instructions is not None:
+        settings.system_instructions = settings_in.system_instructions
+        
+    db.commit()
+    db.refresh(settings)
+    return settings
+
+@app.get("/api/users/{user_id}/memories")
+def get_user_memories(user_id: str, db: Session = Depends(get_db)):
+    memories = db.query(UserMemory).filter(UserMemory.user_id == user_id).order_by(UserMemory.created_at.desc()).all()
+    # Return serializable records
+    return [{"id": m.id, "content": m.content, "created_at": m.created_at} for m in memories]
+
+@app.delete("/api/memories/{memory_id}")
+def delete_user_memory(memory_id: int, db: Session = Depends(get_db)):
+    memory = db.query(UserMemory).filter(UserMemory.id == memory_id).first()
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    db.delete(memory)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/users/{user_id}/threads")
+def list_user_threads(user_id: str, db: Session = Depends(get_db)):
+    threads = db.query(ChatThread).filter(ChatThread.user_id == user_id).order_by(ChatThread.created_at.desc()).all()
+    return threads
+
+@app.get("/api/threads/{thread_id}/messages")
+def get_thread_messages(thread_id: str, db: Session = Depends(get_db)):
+    messages = db.query(ChatMessage).filter(ChatMessage.thread_id == thread_id).order_by(ChatMessage.created_at.asc()).all()
+    return messages
+
+# --- Chat Endpoint ---
+
 @app.post("/api/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks):
     async def event_generator():
+        from database.connection import SessionLocal
+        db = SessionLocal()
         start_time = time.time()
         current_complexity = "simple"
         routed_model_id = "gemini-3.5-flash"
@@ -43,17 +236,53 @@ async def chat_endpoint(request: ChatRequest):
         # Track tokens and costs
         token_usage_records = []
         accumulated_text = ""
+        accumulated_plan = ""
+        accumulated_reasoning = ""
         
         try:
-            logger.info(f"[API] ChatRequest: message='{request.message}', model='{request.model}', provider='{request.provider}'")
+            logger.info(f"[API] ChatRequest: message='{request.message}', user_id='{request.user_id}', thread_id='{request.thread_id}', model='{request.model}', provider='{request.provider}'")
+            
+            # Resolve preferred model from user settings if 'auto' or not passed
+            resolved_model = request.model
+            if not resolved_model or resolved_model == "auto":
+                if request.user_id:
+                    settings = db.query(UserSetting).filter(UserSetting.user_id == request.user_id).first()
+                    if settings:
+                        resolved_model = settings.preferred_model or "auto"
             
             config = {
                 "configurable": {
                     "thread_id": request.thread_id,
+                    "user_id": request.user_id,
                     "provider": request.provider,
-                    "model": request.model or "auto",
+                    "model": resolved_model or "auto",
                 }
             }
+            
+            # Hydrate checkpointer if empty
+            try:
+                state = await graph.aget_state(config)
+                if not state.values or not state.values.get("messages"):
+                    logger.info(f"[Hydration] Hydrating LangGraph checkpointer for thread '{request.thread_id}'")
+                    db_messages = db.query(ChatMessage).filter(ChatMessage.thread_id == request.thread_id).order_by(ChatMessage.created_at.asc()).all()
+                    if db_messages:
+                        lc_messages = []
+                        for m in db_messages:
+                            if m.role == "user":
+                                lc_messages.append(HumanMessage(content=m.content))
+                            elif m.role == "assistant":
+                                lc_messages.append(AIMessage(
+                                    content=m.content,
+                                    additional_kwargs={
+                                        "plan": m.plan,
+                                        "reasoning": m.reasoning,
+                                        "routing": m.routing,
+                                        "metrics": m.metrics
+                                    }
+                                ))
+                        await graph.aupdate_state(config, {"messages": lc_messages})
+            except Exception as hyd_err:
+                logger.error(f"[Hydration] Hydration failed: {hyd_err}", exc_info=True)
             
             # Use LangGraph astream_events to listen to execution steps
             async for event in graph.astream_events(
@@ -79,17 +308,20 @@ async def chat_endpoint(request: ChatRequest):
                     chunk = event["data"]["chunk"]
                     if hasattr(chunk, "content") and chunk.content:
                         content_chunk = chunk.content
-                        accumulated_text += content_chunk
                         
                         # Determine event type based on node and complexity
                         if node_name == "planner":
+                            accumulated_plan += content_chunk
                             yield f"data: {json.dumps({'type': 'plan_debug', 'content': content_chunk})}\n\n"
                         elif node_name == "agent":
                             if current_complexity == "complex":
+                                accumulated_reasoning += content_chunk
                                 yield f"data: {json.dumps({'type': 'reasoning_debug', 'content': content_chunk})}\n\n"
                             else:
+                                accumulated_text += content_chunk
                                 yield f"data: {json.dumps({'type': 'token', 'content': content_chunk})}\n\n"
                         elif node_name == "synthesize":
+                            accumulated_text += content_chunk
                             yield f"data: {json.dumps({'type': 'token', 'content': content_chunk})}\n\n"
                             
                 # 3. Capture token usage from model completions
@@ -186,22 +418,47 @@ async def chat_endpoint(request: ChatRequest):
             }
             yield f"data: {json.dumps({'type': 'metrics', 'content': metrics_payload})}\n\n"
             
+            # Dispatch background task to save messages and extract memory
+            background_tasks.add_task(
+                save_chat_and_extract_memory,
+                request.user_id,
+                request.thread_id,
+                request.message,
+                accumulated_text,
+                accumulated_plan,
+                accumulated_reasoning,
+                routing_metadata_dump,
+                metrics_payload
+            )
+            
             # Signal stream completion
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
             
         except Exception as e:
             logger.error(f"Error in chat stream: {e}", exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+        finally:
+            db.close()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/providers/availability")
 async def get_providers_availability():
+    # Check if local Ollama is running
+    ollama_host = os.environ.get("OLLAMA_HOST") or os.environ.get("OLLAMA_BASE_URL") or "http://host.docker.internal:11434"
+    try:
+        import httpx
+        res = httpx.get(f"{ollama_host}/api/tags", timeout=1.0)
+        ollama_available = res.status_code == 200
+    except Exception:
+        ollama_available = False
+
     return {
         "google": bool(os.environ.get("GOOGLE_API_KEY")),
         "openai": bool(os.environ.get("OPENAI_API_KEY")),
         "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "groq": bool(os.environ.get("GROQ_API_KEY")),
+        "ollama": ollama_available,
     }
 
 @app.post("/api/transcribe")
@@ -221,17 +478,32 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         mime_type = file.content_type or "audio/webm"
         
         try:
-            model = genai.GenerativeModel("gemini-3.5-flash")
-            prompt = "Please accurately transcribe this audio. Output only the exact spoken text from the audio, without any additional conversational text or formatting."
-            
-            audio_part = {
-                "mime_type": mime_type,
-                "data": audio_content
-            }
-            
-            response = model.generate_content([prompt, audio_part])
-            text = response.text
-            
+            model_name = "gemini-3.5-flash"
+            try:
+                model = genai.GenerativeModel(model_name)
+                prompt = "Please accurately transcribe this audio. Output only the exact spoken text from the audio, without any additional conversational text or formatting."
+                
+                audio_part = {
+                    "mime_type": mime_type,
+                    "data": audio_content
+                }
+                
+                response = model.generate_content([prompt, audio_part])
+                text = response.text
+            except Exception as first_err:
+                logger.warning(f"[API] Transcribing with {model_name} failed. Falling back to gemini-3.1-flash-lite. Error: {first_err}")
+                model_name = "gemini-3.1-flash-lite"
+                model = genai.GenerativeModel(model_name)
+                prompt = "Please accurately transcribe this audio. Output only the exact spoken text from the audio, without any additional conversational text or formatting."
+                
+                audio_part = {
+                    "mime_type": mime_type,
+                    "data": audio_content
+                }
+                
+                response = model.generate_content([prompt, audio_part])
+                text = response.text
+                
             # Strip markdown if present
             if text.startswith("```"):
                 text = text.split("\n", 1)[-1]
@@ -252,3 +524,4 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

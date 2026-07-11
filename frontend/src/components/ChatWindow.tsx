@@ -27,6 +27,7 @@ interface Message {
 
 interface ChatWindowProps {
   threadId: string;
+  activeUserId: string;
 }
 
 const UNIFIED_MODELS = [
@@ -46,10 +47,12 @@ const UNIFIED_MODELS = [
   { id: "gpt-5.5-omni", name: "GPT 5.5 Omni", provider: "openai" },
   { id: "gpt-5.6-omni", name: "GPT 5.6 Omni", provider: "openai" },
   { id: "groq-llama-3.3-70b", name: "Llama 3.3 70B", provider: "groq" },
-  { id: "groq-llama-3.1-8b", name: "Llama 3.1 8B", provider: "groq" }
+  { id: "groq-llama-3.1-8b", name: "Llama 3.1 8B", provider: "groq" },
+  { id: "ollama-qwen2.5-coder-14b", name: "Qwen 2.5 Coder 14B (Local)", provider: "ollama" },
+  { id: "ollama-gemma4-e4b", name: "Gemma 4 (Local)", provider: "ollama" }
 ];
 
-export default function ChatWindow({ threadId }: ChatWindowProps) {
+export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -61,6 +64,7 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
     openai: false,
     anthropic: false,
     groq: false,
+    ollama: false,
   });
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -89,9 +93,39 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Reset messages when threadId changes
+  // Load previous messages when threadId changes
   useEffect(() => {
-    setMessages([]);
+    const fetchHistory = async () => {
+      if (!threadId) {
+        setMessages([]);
+        return;
+      }
+      
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiBaseUrl}/api/threads/${threadId}/messages`);
+        if (res.ok) {
+          const data = await res.json();
+          const uiMessages = data.map((m: any) => ({
+            id: `msg-${m.id}`,
+            role: m.role,
+            content: m.content,
+            plan: m.plan,
+            reasoning: m.reasoning,
+            routing: m.routing,
+            metrics: m.metrics
+          }));
+          setMessages(uiMessages);
+        } else {
+          setMessages([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch thread messages:", err);
+        setMessages([]);
+      }
+    };
+    
+    fetchHistory();
   }, [threadId]);
 
   const sendMessage = async (messageText: string) => {
@@ -126,6 +160,7 @@ export default function ChatWindow({ threadId }: ChatWindowProps) {
         body: JSON.stringify({
           message: messageText,
           thread_id: threadId,
+          user_id: activeUserId,
           model: selectedModel
         }),
       });
