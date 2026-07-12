@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, UserPlus, Trash2, Save, X, Sparkles, Brain, LogOut } from "lucide-react";
+import { User, UserPlus, Trash2, Save, X, Sparkles, Brain, LogOut, BookOpen, Clock, Settings } from "lucide-react";
 import styles from "./SettingsPanel.module.css";
 
 interface SettingsPanelProps {
@@ -27,6 +27,20 @@ interface UserSettings {
 interface MemoryItem {
   id: number;
   content: string;
+  created_at: string;
+}
+
+interface UserEpisode {
+  id: number;
+  thread_id: string;
+  summary: string;
+  created_at: string;
+}
+
+interface UserProcedure {
+  id: number;
+  rule: string;
+  source_thread_id: string | null;
   created_at: string;
 }
 
@@ -57,6 +71,10 @@ export default function SettingsPanel({
     system_instructions: ""
   });
   const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [profile, setProfile] = useState<Record<string, any>>({});
+  const [episodes, setEpisodes] = useState<UserEpisode[]>([]);
+  const [procedures, setProcedures] = useState<UserProcedure[]>([]);
+  const [activeTab, setActiveTab] = useState<"profile" | "episodes" | "procedures" | "facts">("profile");
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
@@ -68,7 +86,7 @@ export default function SettingsPanel({
       fetchUsers();
     }
     fetchUserSettings(activeUserId);
-    fetchUserMemories(activeUserId);
+    fetchWikiMemory(activeUserId);
   }, [activeUserId, userRole]);
 
   const fetchUsers = async () => {
@@ -95,16 +113,22 @@ export default function SettingsPanel({
     }
   };
 
-  const fetchUserMemories = async (userId: string) => {
+  const fetchWikiMemory = async (userId: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/users/${userId}/memories`);
-      if (res.ok) {
-        const data = await res.json();
-        setMemories(data);
-      }
+      const [memRes, profRes, epRes, procRes] = await Promise.all([
+        fetch(`${apiBaseUrl}/api/users/${userId}/memories`),
+        fetch(`${apiBaseUrl}/api/users/${userId}/profile`),
+        fetch(`${apiBaseUrl}/api/users/${userId}/episodes`),
+        fetch(`${apiBaseUrl}/api/users/${userId}/procedures`)
+      ]);
+      
+      if (memRes.ok) setMemories(await memRes.json());
+      if (profRes.ok) setProfile(await profRes.json());
+      if (epRes.ok) setEpisodes(await epRes.json());
+      if (procRes.ok) setProcedures(await procRes.json());
     } catch (err) {
-      console.error("Failed to fetch memories:", err);
+      console.error("Failed to fetch Wiki Memory:", err);
     } finally {
       setIsLoading(false);
     }
@@ -179,12 +203,42 @@ export default function SettingsPanel({
     }
   };
 
+  const handleDeleteEpisode = async (episodeId: number) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/episodes/${episodeId}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setEpisodes((prev) => prev.filter((e) => e.id !== episodeId));
+      } else {
+        alert("Failed to delete episode.");
+      }
+    } catch (err) {
+      console.error("Error deleting episode:", err);
+    }
+  };
+
+  const handleDeleteProcedure = async (procedureId: number) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/procedures/${procedureId}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setProcedures((prev) => prev.filter((p) => p.id !== procedureId));
+      } else {
+        alert("Failed to delete behavioral preference.");
+      }
+    } catch (err) {
+      console.error("Error deleting procedure:", err);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.titleArea}>
           <Brain className={styles.headerIcon} size={24} />
-          <h2 className={styles.title}>System Control & User Memory</h2>
+          <h2 className={styles.title}>System Control & Wiki Memory</h2>
         </div>
         <button onClick={onClose} className={styles.closeButton} title="Back to Chat">
           <X size={20} />
@@ -325,50 +379,177 @@ export default function SettingsPanel({
           </section>
         </div>
 
-        {/* Right Section: Semantic Memories */}
+        {/* Right Section: Wiki Memory Tabbed Area */}
         <div className={styles.rightCol}>
           <section className={styles.sectionMemory}>
-            <div className={styles.sectionMemoryHeader}>
-              <h3 className={styles.sectionTitle}>
-                <Sparkles size={16} style={{ color: "var(--accent-secondary)" }} />
-                Extracted Semantic Memories
-              </h3>
-              <span className={styles.memoryCount}>{memories.length} facts</span>
+            <div className={styles.tabs}>
+              <button
+                className={`${styles.tab} ${activeTab === "profile" ? styles.activeTab : ""}`}
+                onClick={() => setActiveTab("profile")}
+              >
+                <User size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
+                Structured Profile
+              </button>
+              <button
+                className={`${styles.tab} ${activeTab === "episodes" ? styles.activeTab : ""}`}
+                onClick={() => setActiveTab("episodes")}
+              >
+                <Clock size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
+                Episodes ({episodes.length})
+              </button>
+              <button
+                className={`${styles.tab} ${activeTab === "procedures" ? styles.activeTab : ""}`}
+                onClick={() => setActiveTab("procedures")}
+              >
+                <Settings size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
+                Behavioral Rules ({procedures.length})
+              </button>
+              <button
+                className={`${styles.tab} ${activeTab === "facts" ? styles.activeTab : ""}`}
+                onClick={() => setActiveTab("facts")}
+              >
+                <Sparkles size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
+                Semantic Index ({memories.length})
+              </button>
             </div>
-            <p className={styles.sectionDesc}>
-              These facts are automatically extracted in the background from your chat sessions.
-              They are embedded in a vector index to provide personalization dynamically.
-            </p>
 
             {isLoading ? (
               <div className={styles.loaderArea}>
                 <div className={styles.loader}></div>
-                <span>Loading memories...</span>
-              </div>
-            ) : memories.length === 0 ? (
-              <div className={styles.emptyMemories}>
-                <Brain size={32} className={styles.emptyMemIcon} />
-                <p>No memories extracted yet.</p>
-                <span>Memories will appear here automatically as you chat and share preferences.</span>
+                <span>Loading Wiki Memory...</span>
               </div>
             ) : (
-              <div className={styles.memoryList}>
-                {memories.map((m) => (
-                  <div key={m.id} className={styles.memoryItem}>
-                    <div className={styles.memoryContent}>
-                      <span className={styles.memoryBullet}>✦</span>
-                      <p className={styles.memoryText}>{m.content}</p>
+              <>
+                {activeTab === "profile" && (
+                  Object.keys(profile).length === 0 ? (
+                    <div className={styles.emptyMemories}>
+                      <User size={32} className={styles.emptyMemIcon} />
+                      <p>No profile compiled yet.</p>
+                      <span>The assistant will compile your structured user profile automatically as you interact.</span>
                     </div>
-                    <button
-                      className={styles.deleteMemoryBtn}
-                      onClick={() => handleDeleteMemory(m.id)}
-                      title="Delete memory fact"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+                  ) : (
+                    <div className={styles.profileGrid}>
+                      {Object.entries(profile).map(([category, catData]) => (
+                        <div key={category} className={styles.profileCard}>
+                          <div className={styles.profileCardHeader}>
+                            {category.replace('_', ' ')}
+                          </div>
+                          <div className={styles.profileCardBody}>
+                            {typeof catData === "object" && !Array.isArray(catData) ? (
+                              Object.entries(catData).map(([key, val]) => (
+                                <div key={key} className={styles.profileItem}>
+                                  <span className={styles.profileKey}>{key.replace('_', ' ')}</span>
+                                  <span className={styles.profileVal}>{String(val)}</span>
+                                </div>
+                              ))
+                            ) : Array.isArray(catData) ? (
+                              <span className={styles.profileVal}>{catData.join(", ")}</span>
+                            ) : (
+                              <span className={styles.profileVal}>{String(catData)}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+
+                {activeTab === "episodes" && (
+                  episodes.length === 0 ? (
+                    <div className={styles.emptyMemories}>
+                      <Clock size={32} className={styles.emptyMemIcon} />
+                      <p>No episodic memories summarized.</p>
+                      <span>Past conversation summaries will be recorded here to preserve context across threads.</span>
+                    </div>
+                  ) : (
+                    <div className={styles.memoryList}>
+                      {episodes.map((ep) => (
+                        <div key={ep.id} className={styles.memoryItem}>
+                          <div className={styles.memoryContent}>
+                            <span className={styles.memoryBullet}>✦</span>
+                            <div>
+                              <p className={styles.memoryText}>{ep.summary}</p>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Thread: {ep.thread_id.substring(0, 10)}... | {new Date(ep.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            className={styles.deleteMemoryBtn}
+                            onClick={() => handleDeleteEpisode(ep.id)}
+                            title="Delete episode"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+
+                {activeTab === "procedures" && (
+                  procedures.length === 0 ? (
+                    <div className={styles.emptyMemories}>
+                      <Settings size={32} className={styles.emptyMemIcon} />
+                      <p>No behavioral preferences learned.</p>
+                      <span>Preferences about how the assistant should format code, explain things, etc., will appear here.</span>
+                    </div>
+                  ) : (
+                    <div className={styles.memoryList}>
+                      {procedures.map((p) => (
+                        <div key={p.id} className={styles.memoryItem}>
+                          <div className={styles.memoryContent}>
+                            <span className={styles.memoryBullet}>✦</span>
+                            <div>
+                              <p className={styles.memoryText}>{p.rule}</p>
+                              {p.source_thread_id && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  Learned from thread: {p.source_thread_id.substring(0, 10)}...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            className={styles.deleteMemoryBtn}
+                            onClick={() => handleDeleteProcedure(p.id)}
+                            title="Delete preference"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+
+                {activeTab === "facts" && (
+                  memories.length === 0 ? (
+                    <div className={styles.emptyMemories}>
+                      <Sparkles size={32} className={styles.emptyMemIcon} />
+                      <p>No memories indexed.</p>
+                      <span>Raw facts will appear here to power semantic search queries.</span>
+                    </div>
+                  ) : (
+                    <div className={styles.memoryList}>
+                      {memories.map((m) => (
+                        <div key={m.id} className={styles.memoryItem}>
+                          <div className={styles.memoryContent}>
+                            <span className={styles.memoryBullet}>✦</span>
+                            <p className={styles.memoryText}>{m.content}</p>
+                          </div>
+                          <button
+                            className={styles.deleteMemoryBtn}
+                            onClick={() => handleDeleteMemory(m.id)}
+                            title="Delete memory fact"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+              </>
             )}
           </section>
         </div>

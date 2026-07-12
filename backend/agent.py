@@ -202,16 +202,19 @@ async def call_model_node(state: State, config: RunnableConfig):
     import datetime
     current_time_str = datetime.datetime.now().strftime("%A, %B %d, %Y, %I:%M %p")
     
-    # Load user memory & settings
+    # Load Wiki Memory (profile, episodes, procedures) & settings
     configurable = config.get("configurable", {})
     user_id = configurable.get("user_id")
     custom_instructions = ""
-    memories_str = ""
+    wiki_memory_str = ""
     
     if user_id:
         from database.connection import SessionLocal
         from database.models import UserSetting
-        from memory.memory_service import retrieve_relevant_memories
+        from memory.memory_service import (
+            retrieve_relevant_memories, retrieve_user_profile,
+            retrieve_relevant_episodes, retrieve_user_procedures
+        )
         
         db = SessionLocal()
         try:
@@ -225,10 +228,46 @@ async def call_model_node(state: State, config: RunnableConfig):
                     user_prompt = msg.content
                     break
             
+            # Phase 1: Structured profile
+            import json as _json
+            profile = retrieve_user_profile(db, user_id)
+            if profile:
+                wiki_memory_str += "[User Profile]\n"
+                for category, data in profile.items():
+                    label = category.replace('_', ' ').title()
+                    if isinstance(data, dict):
+                        for k, v in data.items():
+                            wiki_memory_str += f"- {k.replace('_', ' ').title()}: {v}\n"
+                    elif isinstance(data, list):
+                        wiki_memory_str += f"- {label}: {', '.join(str(v) for v in data)}\n"
+                    elif data:
+                        wiki_memory_str += f"- {label}: {data}\n"
+            
             if user_prompt:
+                # Phase 1 supplement: flat semantic memories
                 memories = retrieve_relevant_memories(db, user_id, user_prompt, limit=5)
                 if memories:
-                    memories_str = "\n".join([f"- {m}" for m in memories])
+                    if not wiki_memory_str:
+                        wiki_memory_str += "[User Facts]\n"
+                    for m in memories:
+                        # Avoid duplicating profile entries
+                        if m.lower() not in wiki_memory_str.lower():
+                            wiki_memory_str += f"- {m}\n"
+                
+                # Phase 2: Episodic memories (past conversations)
+                episodes = retrieve_relevant_episodes(db, user_id, user_prompt, limit=3)
+                if episodes:
+                    wiki_memory_str += "\n[Relevant Past Conversations]\n"
+                    for ep in episodes:
+                        wiki_memory_str += f"- {ep}\n"
+                
+                # Phase 3: Procedural rules
+                procedures = retrieve_user_procedures(db, user_id, user_prompt, limit=5)
+                if procedures:
+                    wiki_memory_str += "\n[User's Behavioral Preferences]\n"
+                    for rule in procedures:
+                        wiki_memory_str += f"- {rule}\n"
+                        
         except Exception as db_err:
             logger.error(f"[AgentNode] Error loading context from DB: {db_err}", exc_info=True)
         finally:
@@ -238,8 +277,8 @@ async def call_model_node(state: State, config: RunnableConfig):
     system_instruction = f"You are a helpful AI assistant. The current date and time is {current_time_str}."
     if custom_instructions:
         system_instruction += f"\n\n[User Custom Instructions]\n{custom_instructions}"
-    if memories_str:
-        system_instruction += f"\n\n[User Profile & Context (Retrieved Memories)]\n{memories_str}\n\nUse these retrieved facts to personalize your response where appropriate. Do not repeat them if not relevant."
+    if wiki_memory_str:
+        system_instruction += f"\n\n[Wiki Memory — What You Know About This User]\n{wiki_memory_str}\nUse this knowledge to personalize your response where appropriate. Do not repeat facts unless the user asks."
     if plan:
         system_instruction += f"\n\n[Execution Plan]\nFollow this plan to answer the query:\n{plan}"
 
@@ -314,16 +353,19 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
                 synthesis_model = candidate
                 break
 
-    # Load user memory & settings
+    # Load Wiki Memory & settings
     configurable = config.get("configurable", {})
     user_id = configurable.get("user_id")
     custom_instructions = ""
-    memories_str = ""
+    wiki_memory_str = ""
     
     if user_id:
         from database.connection import SessionLocal
         from database.models import UserSetting
-        from memory.memory_service import retrieve_relevant_memories
+        from memory.memory_service import (
+            retrieve_relevant_memories, retrieve_user_profile,
+            retrieve_relevant_episodes, retrieve_user_procedures
+        )
         
         db = SessionLocal()
         try:
@@ -337,10 +379,41 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
                     user_prompt = msg.content
                     break
             
+            import json as _json
+            profile = retrieve_user_profile(db, user_id)
+            if profile:
+                wiki_memory_str += "[User Profile]\n"
+                for category, data in profile.items():
+                    label = category.replace('_', ' ').title()
+                    if isinstance(data, dict):
+                        for k, v in data.items():
+                            wiki_memory_str += f"- {k.replace('_', ' ').title()}: {v}\n"
+                    elif isinstance(data, list):
+                        wiki_memory_str += f"- {label}: {', '.join(str(v) for v in data)}\n"
+                    elif data:
+                        wiki_memory_str += f"- {label}: {data}\n"
+            
             if user_prompt:
                 memories = retrieve_relevant_memories(db, user_id, user_prompt, limit=5)
                 if memories:
-                    memories_str = "\n".join([f"- {m}" for m in memories])
+                    if not wiki_memory_str:
+                        wiki_memory_str += "[User Facts]\n"
+                    for m in memories:
+                        if m.lower() not in wiki_memory_str.lower():
+                            wiki_memory_str += f"- {m}\n"
+                            
+                episodes = retrieve_relevant_episodes(db, user_id, user_prompt, limit=3)
+                if episodes:
+                    wiki_memory_str += "\n[Relevant Past Conversations]\n"
+                    for ep in episodes:
+                        wiki_memory_str += f"- {ep}\n"
+                        
+                procedures = retrieve_user_procedures(db, user_id, user_prompt, limit=5)
+                if procedures:
+                    wiki_memory_str += "\n[User's Behavioral Preferences]\n"
+                    for rule in procedures:
+                        wiki_memory_str += f"- {rule}\n"
+                        
         except Exception as db_err:
             logger.error(f"[SynthesisNode] Error loading context from DB: {db_err}", exc_info=True)
         finally:
@@ -364,8 +437,8 @@ async def synthesize_response_node(state: State, config: RunnableConfig):
         )
         if custom_instructions:
             system_prompt += f"\n\n[User Custom Instructions]\n{custom_instructions}"
-        if memories_str:
-            system_prompt += f"\n\n[User Profile & Context (Retrieved Memories)]\n{memories_str}\n\nUse these retrieved facts to personalize your response where appropriate."
+        if wiki_memory_str:
+            system_prompt += f"\n\n[Wiki Memory — What You Know About This User]\n{wiki_memory_str}\nUse this knowledge to personalize your response where appropriate."
         if plan:
             system_prompt += f"\n\nPlan was: {plan}"
 

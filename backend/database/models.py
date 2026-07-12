@@ -16,6 +16,8 @@ class User(Base):
     settings = relationship("UserSetting", back_populates="user", cascade="all, delete-orphan", uselist=False)
     threads = relationship("ChatThread", back_populates="user", cascade="all, delete-orphan")
     memories = relationship("UserMemory", back_populates="user", cascade="all, delete-orphan")
+    episodes = relationship("UserEpisode", back_populates="user", cascade="all, delete-orphan")
+    procedures = relationship("UserProcedure", back_populates="user", cascade="all, delete-orphan")
 
 class UserSetting(Base):
     __tablename__ = "user_settings"
@@ -24,6 +26,7 @@ class UserSetting(Base):
     theme = Column(String, default="system")
     preferred_model = Column(String, default="auto")
     system_instructions = Column(Text, default="")
+    profile = Column(JSON, default=dict)  # Wiki Memory: structured user profile
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="settings")
@@ -64,3 +67,30 @@ class UserMemory(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="memories")
+
+class UserEpisode(Base):
+    """Episodic Memory: stores summaries of past conversation threads."""
+    __tablename__ = "user_episodes"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    thread_id = Column(String, nullable=False)
+    summary = Column(Text, nullable=False)
+    embedding = Column(Vector(768), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="episodes")
+
+class UserProcedure(Base):
+    """Procedural Memory: stores learned behavioral rules and preferences."""
+    __tablename__ = "user_procedures"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    rule = Column(Text, nullable=False)
+    source_thread_id = Column(String, nullable=True)
+    embedding = Column(Vector(768), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="procedures")
+

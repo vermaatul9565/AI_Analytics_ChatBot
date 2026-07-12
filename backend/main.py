@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from agent import graph
 from llm.registry.model_registry import ModelRegistry
 from database.connection import init_db, get_db
-from database.models import User, UserSetting, ChatThread, ChatMessage, UserMemory
+from database.models import User, UserSetting, ChatThread, ChatMessage, UserMemory, UserEpisode, UserProcedure
 from memory.memory_service import extract_and_save_memories, retrieve_relevant_memories, generate_embedding
 
 # Set up logging
@@ -112,8 +112,8 @@ def save_chat_and_extract_memory(user_id: str | None, thread_id: str, user_messa
     finally:
         db.close()
         
-    # Extract memory
-    extract_and_save_memories(user_id, user_message, assistant_response)
+    # Extract memory (Wiki Memory system - all 3 phases)
+    extract_and_save_memories(user_id, user_message, assistant_response, thread_id=thread_id)
 
 # --- Database API Routes ---
 
@@ -202,12 +202,50 @@ def get_user_memories(user_id: str, db: Session = Depends(get_db)):
     # Return serializable records
     return [{"id": m.id, "content": m.content, "created_at": m.created_at} for m in memories]
 
+@app.get("/api/users/{user_id}/profile")
+def get_user_profile(user_id: str, db: Session = Depends(get_db)):
+    """Get structured Wiki Memory profile for a user."""
+    settings = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
+    if not settings or not settings.profile:
+        return {}
+    return settings.profile
+
+@app.get("/api/users/{user_id}/episodes")
+def get_user_episodes(user_id: str, db: Session = Depends(get_db)):
+    """Get episodic memories (thread summaries) for a user."""
+    episodes = db.query(UserEpisode).filter(UserEpisode.user_id == user_id).order_by(UserEpisode.created_at.desc()).all()
+    return [{"id": e.id, "thread_id": e.thread_id, "summary": e.summary, "created_at": e.created_at} for e in episodes]
+
+@app.get("/api/users/{user_id}/procedures")
+def get_user_procedures(user_id: str, db: Session = Depends(get_db)):
+    """Get procedural memory rules for a user."""
+    procedures = db.query(UserProcedure).filter(UserProcedure.user_id == user_id).order_by(UserProcedure.created_at.desc()).all()
+    return [{"id": p.id, "rule": p.rule, "source_thread_id": p.source_thread_id, "created_at": p.created_at} for p in procedures]
+
 @app.delete("/api/memories/{memory_id}")
 def delete_user_memory(memory_id: int, db: Session = Depends(get_db)):
     memory = db.query(UserMemory).filter(UserMemory.id == memory_id).first()
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
     db.delete(memory)
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/episodes/{episode_id}")
+def delete_episode(episode_id: int, db: Session = Depends(get_db)):
+    episode = db.query(UserEpisode).filter(UserEpisode.id == episode_id).first()
+    if not episode:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    db.delete(episode)
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/procedures/{procedure_id}")
+def delete_procedure(procedure_id: int, db: Session = Depends(get_db)):
+    procedure = db.query(UserProcedure).filter(UserProcedure.id == procedure_id).first()
+    if not procedure:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+    db.delete(procedure)
     db.commit()
     return {"status": "success"}
 
