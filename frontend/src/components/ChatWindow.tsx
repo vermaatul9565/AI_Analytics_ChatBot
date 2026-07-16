@@ -365,6 +365,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
       return;
     }
 
+    setAttachedFile(null);
     setIsUploadingFile(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -610,7 +611,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
       </div>
 
       <div className={styles.composerContainer}>
-        {attachedFile && (() => {
+        {attachedFile && !isUploadingFile && (() => {
           let FileIcon = Paperclip;
           const lowerFile = attachedFile.filename.toLowerCase();
           if (lowerFile.endsWith('.png') || lowerFile.endsWith('.jpg') || lowerFile.endsWith('.jpeg') || lowerFile.endsWith('.webp')) FileIcon = ImageIcon;
