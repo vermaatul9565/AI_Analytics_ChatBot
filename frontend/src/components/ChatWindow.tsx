@@ -73,6 +73,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollBehaviorRef = useRef<ScrollBehavior>("auto");
 
   const [attachedFile, setAttachedFile] = useState<{ filename: string; content: string } | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
@@ -121,7 +122,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: scrollBehaviorRef.current });
   }, [messages]);
 
   // Load previous messages when threadId changes
@@ -146,6 +147,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
             routing: m.routing,
             metrics: m.metrics
           }));
+          scrollBehaviorRef.current = "auto";
           setMessages(uiMessages);
         } else {
           setMessages([]);
@@ -163,6 +165,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     if (!messageText.trim() || isStreaming) return;
 
     setIsStreaming(true);
+    scrollBehaviorRef.current = "smooth";
     const userMsgId = `msg-${Date.now()}`;
     const assistantMsgId = `msg-${Date.now() + 1}`;
 
