@@ -525,3 +525,122 @@
   color: #ef4444;
 }
 
+/* Edit UI additions */
+.profileContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profileHeaderControls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.actionBtnProfile {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.actionBtnProfile:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.jsonEditor {
+  width: 100%;
+  height: 400px;
+  background: #111;
+  color: #a6e22e;
+  font-family: monospace;
+  font-size: 0.875rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+}
+.jsonEditor:focus {
+  border-color: var(--accent-primary);
+}
+
+.editInputTextarea {
+  width: 100%;
+  min-height: 60px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+  margin-bottom: 0.5rem;
+  outline: none;
+}
+
+.editControls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.saveBtn, .cancelBtn {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 500;
+}
+.saveBtn {
+  background: var(--accent-primary);
+  color: white;
+}
+.saveBtn:hover {
+  background: var(--accent-secondary);
+}
+.cancelBtn {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+.cancelBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.memoryActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.memoryItem:hover .memoryActions {
+  opacity: 1;
+}
+
+.actionBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.375rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}

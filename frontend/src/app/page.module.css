@@ -118,6 +118,52 @@
   flex: 1;
 }
 
+.editInput {
+  font-size: 0.875rem;
+  font-family: inherit;
+  flex: 1;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+  outline: none;
+}
+.editInput:focus {
+  border-color: var(--accent-primary);
+}
+
+.threadActions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  margin-left: auto;
+}
+
+.threadItem:hover .threadActions,
+.threadItemActive:hover .threadActions {
+  opacity: 1;
+}
+
+.actionButton {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.actionButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .footer {
   display: flex;
   flex-direction: column;

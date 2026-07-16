@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, UserPlus, Trash2, Save, X, Sparkles, Brain, LogOut, BookOpen, Clock, Settings } from "lucide-react";
+import { User, UserPlus, Trash2, Save, X, Sparkles, Brain, LogOut, BookOpen, Clock, Settings, Pencil } from "lucide-react";
 import styles from "./SettingsPanel.module.css";
 
 interface SettingsPanelProps {
@@ -78,6 +78,12 @@ export default function SettingsPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileJson, setProfileJson] = useState("");
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editingItemType, setEditingItemType] = useState<"episodes" | "procedures" | "facts" | null>(null);
+  const [editingItemValue, setEditingItemValue] = useState("");
+
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   // Fetch users (if admin) and settings when mounted or activeUserId changes
@@ -134,6 +140,67 @@ export default function SettingsPanel({
     }
   };
 
+  const handleSaveProfileJSON = async () => {
+    try {
+      const parsed = JSON.parse(profileJson);
+      const res = await fetch(`${apiBaseUrl}/api/users/${activeUserId}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: parsed })
+      });
+      if (res.ok) {
+        setProfile(parsed);
+        setEditingProfile(false);
+      }
+    } catch (err) {
+      alert("Invalid JSON format");
+      console.error(err);
+    }
+  };
+
+  const handleDeleteMemory = async (type: "episodes" | "procedures" | "memories", id: number) => {
+    if (!confirm("Delete this memory?")) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/${type}/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        if (type === "episodes") setEpisodes(prev => prev.filter(e => e.id !== id));
+        if (type === "procedures") setProcedures(prev => prev.filter(p => p.id !== id));
+        if (type === "memories") setMemories(prev => prev.filter(m => m.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete memory:", err);
+    }
+  };
+
+  const handleSaveMemoryItem = async () => {
+    if (editingItemId === null || !editingItemType || !editingItemValue.trim()) {
+      setEditingItemId(null);
+      return;
+    }
+    const typeMapping = { episodes: "episodes", procedures: "procedures", facts: "memories" };
+    const fieldMapping = { episodes: "summary", procedures: "rule", facts: "content" };
+    
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/${typeMapping[editingItemType]}/${editingItemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [fieldMapping[editingItemType]]: editingItemValue.trim() })
+      });
+      if (res.ok) {
+        if (editingItemType === "episodes") {
+          setEpisodes(prev => prev.map(e => e.id === editingItemId ? { ...e, summary: editingItemValue.trim() } : e));
+        } else if (editingItemType === "procedures") {
+          setProcedures(prev => prev.map(p => p.id === editingItemId ? { ...p, rule: editingItemValue.trim() } : p));
+        } else if (editingItemType === "facts") {
+          setMemories(prev => prev.map(m => m.id === editingItemId ? { ...m, content: editingItemValue.trim() } : m));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update memory:", err);
+    }
+    setEditingItemId(null);
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUsername.trim()) return;
@@ -185,51 +252,6 @@ export default function SettingsPanel({
     } catch (err) {
       console.error("Error saving settings:", err);
       setSaveStatus("error");
-    }
-  };
-
-  const handleDeleteMemory = async (memoryId: number) => {
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/memories/${memoryId}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        setMemories((prev) => prev.filter((m) => m.id !== memoryId));
-      } else {
-        alert("Failed to delete memory item.");
-      }
-    } catch (err) {
-      console.error("Error deleting memory:", err);
-    }
-  };
-
-  const handleDeleteEpisode = async (episodeId: number) => {
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/episodes/${episodeId}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        setEpisodes((prev) => prev.filter((e) => e.id !== episodeId));
-      } else {
-        alert("Failed to delete episode.");
-      }
-    } catch (err) {
-      console.error("Error deleting episode:", err);
-    }
-  };
-
-  const handleDeleteProcedure = async (procedureId: number) => {
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/procedures/${procedureId}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        setProcedures((prev) => prev.filter((p) => p.id !== procedureId));
-      } else {
-        alert("Failed to delete behavioral preference.");
-      }
-    } catch (err) {
-      console.error("Error deleting procedure:", err);
     }
   };
 
@@ -428,28 +450,50 @@ export default function SettingsPanel({
                       <span>The assistant will compile your structured user profile automatically as you interact.</span>
                     </div>
                   ) : (
-                    <div className={styles.profileGrid}>
-                      {Object.entries(profile).map(([category, catData]) => (
-                        <div key={category} className={styles.profileCard}>
-                          <div className={styles.profileCardHeader}>
-                            {category.replace('_', ' ')}
+                    <div className={styles.profileContainer}>
+                      <div className={styles.profileHeaderControls}>
+                        {!editingProfile ? (
+                          <button className={styles.actionBtnProfile} onClick={() => { setProfileJson(JSON.stringify(profile, null, 2)); setEditingProfile(true); }}>
+                            <Pencil size={12} style={{ marginRight: 6 }} /> Edit Raw JSON
+                          </button>
+                        ) : (
+                          <div className={styles.editControls}>
+                            <button className={styles.saveBtn} onClick={handleSaveProfileJSON}>Save</button>
+                            <button className={styles.cancelBtn} onClick={() => setEditingProfile(false)}>Cancel</button>
                           </div>
-                          <div className={styles.profileCardBody}>
-                            {typeof catData === "object" && !Array.isArray(catData) ? (
-                              Object.entries(catData).map(([key, val]) => (
-                                <div key={key} className={styles.profileItem}>
-                                  <span className={styles.profileKey}>{key.replace('_', ' ')}</span>
-                                  <span className={styles.profileVal}>{String(val)}</span>
-                                </div>
-                              ))
-                            ) : Array.isArray(catData) ? (
-                              <span className={styles.profileVal}>{catData.join(", ")}</span>
-                            ) : (
-                              <span className={styles.profileVal}>{String(catData)}</span>
-                            )}
-                          </div>
+                        )}
+                      </div>
+                      {editingProfile ? (
+                        <textarea
+                          className={styles.jsonEditor}
+                          value={profileJson}
+                          onChange={(e) => setProfileJson(e.target.value)}
+                        />
+                      ) : (
+                        <div className={styles.profileGrid}>
+                          {Object.entries(profile).map(([category, catData]) => (
+                            <div key={category} className={styles.profileCard}>
+                              <div className={styles.profileCardHeader}>
+                                {category.replace('_', ' ')}
+                              </div>
+                              <div className={styles.profileCardBody}>
+                                {typeof catData === "object" && !Array.isArray(catData) ? (
+                                  Object.entries(catData).map(([key, val]) => (
+                                    <div key={key} className={styles.profileItem}>
+                                      <span className={styles.profileKey}>{key.replace('_', ' ')}</span>
+                                      <span className={styles.profileVal}>{typeof val === "object" ? JSON.stringify(val) : String(val)}</span>
+                                    </div>
+                                  ))
+                                ) : Array.isArray(catData) ? (
+                                  <span className={styles.profileVal}>{catData.map(v => typeof v === "object" ? JSON.stringify(v) : v).join(", ")}</span>
+                                ) : (
+                                  <span className={styles.profileVal}>{String(catData)}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )
                 )}
@@ -467,20 +511,45 @@ export default function SettingsPanel({
                         <div key={ep.id} className={styles.memoryItem}>
                           <div className={styles.memoryContent}>
                             <span className={styles.memoryBullet}>✦</span>
-                            <div>
-                              <p className={styles.memoryText}>{ep.summary}</p>
+                            <div style={{ flex: 1 }}>
+                              {editingItemId === ep.id && editingItemType === "episodes" ? (
+                                <textarea
+                                  className={styles.editInputTextarea}
+                                  value={editingItemValue}
+                                  onChange={(e) => setEditingItemValue(e.target.value)}
+                                  autoFocus
+                                />
+                              ) : (
+                                <p className={styles.memoryText}>{ep.summary}</p>
+                              )}
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                 Thread: {ep.thread_id.substring(0, 10)}... | {new Date(ep.created_at).toLocaleDateString()}
                               </span>
                             </div>
                           </div>
-                          <button
-                            className={styles.deleteMemoryBtn}
-                            onClick={() => handleDeleteEpisode(ep.id)}
-                            title="Delete episode"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {editingItemId === ep.id && editingItemType === "episodes" ? (
+                            <div className={styles.editControls}>
+                              <button className={styles.saveBtn} onClick={handleSaveMemoryItem}>Save</button>
+                              <button className={styles.cancelBtn} onClick={() => setEditingItemId(null)}>Cancel</button>
+                            </div>
+                          ) : (
+                            <div className={styles.memoryActions}>
+                              <button
+                                className={styles.actionBtn}
+                                onClick={() => { setEditingItemId(ep.id); setEditingItemType("episodes"); setEditingItemValue(ep.summary); }}
+                                title="Edit episode"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                className={styles.actionBtn}
+                                onClick={() => handleDeleteMemory("episodes", ep.id)}
+                                title="Delete episode"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -500,8 +569,17 @@ export default function SettingsPanel({
                         <div key={p.id} className={styles.memoryItem}>
                           <div className={styles.memoryContent}>
                             <span className={styles.memoryBullet}>✦</span>
-                            <div>
-                              <p className={styles.memoryText}>{p.rule}</p>
+                            <div style={{ flex: 1 }}>
+                              {editingItemId === p.id && editingItemType === "procedures" ? (
+                                <textarea
+                                  className={styles.editInputTextarea}
+                                  value={editingItemValue}
+                                  onChange={(e) => setEditingItemValue(e.target.value)}
+                                  autoFocus
+                                />
+                              ) : (
+                                <p className={styles.memoryText}>{p.rule}</p>
+                              )}
                               {p.source_thread_id && (
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                   Learned from thread: {p.source_thread_id.substring(0, 10)}...
@@ -509,13 +587,29 @@ export default function SettingsPanel({
                               )}
                             </div>
                           </div>
-                          <button
-                            className={styles.deleteMemoryBtn}
-                            onClick={() => handleDeleteProcedure(p.id)}
-                            title="Delete preference"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {editingItemId === p.id && editingItemType === "procedures" ? (
+                            <div className={styles.editControls}>
+                              <button className={styles.saveBtn} onClick={handleSaveMemoryItem}>Save</button>
+                              <button className={styles.cancelBtn} onClick={() => setEditingItemId(null)}>Cancel</button>
+                            </div>
+                          ) : (
+                            <div className={styles.memoryActions}>
+                              <button
+                                className={styles.actionBtn}
+                                onClick={() => { setEditingItemId(p.id); setEditingItemType("procedures"); setEditingItemValue(p.rule); }}
+                                title="Edit preference"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                className={styles.actionBtn}
+                                onClick={() => handleDeleteMemory("procedures", p.id)}
+                                title="Delete preference"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -535,15 +629,42 @@ export default function SettingsPanel({
                         <div key={m.id} className={styles.memoryItem}>
                           <div className={styles.memoryContent}>
                             <span className={styles.memoryBullet}>✦</span>
-                            <p className={styles.memoryText}>{m.content}</p>
+                            <div style={{ flex: 1 }}>
+                              {editingItemId === m.id && editingItemType === "facts" ? (
+                                <textarea
+                                  className={styles.editInputTextarea}
+                                  value={editingItemValue}
+                                  onChange={(e) => setEditingItemValue(e.target.value)}
+                                  autoFocus
+                                />
+                              ) : (
+                                <p className={styles.memoryText}>{m.content}</p>
+                              )}
+                            </div>
                           </div>
-                          <button
-                            className={styles.deleteMemoryBtn}
-                            onClick={() => handleDeleteMemory(m.id)}
-                            title="Delete memory fact"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {editingItemId === m.id && editingItemType === "facts" ? (
+                            <div className={styles.editControls}>
+                              <button className={styles.saveBtn} onClick={handleSaveMemoryItem}>Save</button>
+                              <button className={styles.cancelBtn} onClick={() => setEditingItemId(null)}>Cancel</button>
+                            </div>
+                          ) : (
+                            <div className={styles.memoryActions}>
+                              <button
+                                className={styles.actionBtn}
+                                onClick={() => { setEditingItemId(m.id); setEditingItemType("facts"); setEditingItemValue(m.content); }}
+                                title="Edit memory fact"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                className={styles.actionBtn}
+                                onClick={() => handleDeleteMemory("memories", m.id)}
+                                title="Delete memory fact"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

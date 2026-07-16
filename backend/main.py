@@ -55,6 +55,19 @@ class UserSettingsUpdate(BaseModel):
     theme: str | None = None
     preferred_model: str | None = None
     system_instructions: str | None = None
+    profile: dict | None = None
+
+class MemoryUpdate(BaseModel):
+    content: str
+
+class EpisodeUpdate(BaseModel):
+    summary: str
+
+class ProcedureUpdate(BaseModel):
+    rule: str
+
+class ThreadUpdate(BaseModel):
+    title: str
 
 class MemoryCreate(BaseModel):
     content: str
@@ -192,6 +205,8 @@ def update_user_settings(user_id: str, settings_in: UserSettingsUpdate, db: Sess
         settings.preferred_model = settings_in.preferred_model
     if settings_in.system_instructions is not None:
         settings.system_instructions = settings_in.system_instructions
+    if settings_in.profile is not None:
+        settings.profile = settings_in.profile
         
     db.commit()
     db.refresh(settings)
@@ -223,6 +238,16 @@ def get_user_procedures(user_id: str, db: Session = Depends(get_db)):
     procedures = db.query(UserProcedure).filter(UserProcedure.user_id == user_id).order_by(UserProcedure.created_at.desc()).all()
     return [{"id": p.id, "rule": p.rule, "source_thread_id": p.source_thread_id, "created_at": p.created_at} for p in procedures]
 
+@app.put("/api/memories/{memory_id}")
+def update_user_memory(memory_id: int, req: MemoryUpdate, db: Session = Depends(get_db)):
+    memory = db.query(UserMemory).filter(UserMemory.id == memory_id).first()
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    memory.content = req.content
+    memory.embedding = generate_embedding(req.content)
+    db.commit()
+    return {"status": "success"}
+
 @app.delete("/api/memories/{memory_id}")
 def delete_user_memory(memory_id: int, db: Session = Depends(get_db)):
     memory = db.query(UserMemory).filter(UserMemory.id == memory_id).first()
@@ -232,12 +257,32 @@ def delete_user_memory(memory_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success"}
 
+@app.put("/api/episodes/{episode_id}")
+def update_episode(episode_id: int, req: EpisodeUpdate, db: Session = Depends(get_db)):
+    episode = db.query(UserEpisode).filter(UserEpisode.id == episode_id).first()
+    if not episode:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    episode.summary = req.summary
+    episode.embedding = generate_embedding(req.summary)
+    db.commit()
+    return {"status": "success"}
+
 @app.delete("/api/episodes/{episode_id}")
 def delete_episode(episode_id: int, db: Session = Depends(get_db)):
     episode = db.query(UserEpisode).filter(UserEpisode.id == episode_id).first()
     if not episode:
         raise HTTPException(status_code=404, detail="Episode not found")
     db.delete(episode)
+    db.commit()
+    return {"status": "success"}
+
+@app.put("/api/procedures/{procedure_id}")
+def update_procedure(procedure_id: int, req: ProcedureUpdate, db: Session = Depends(get_db)):
+    procedure = db.query(UserProcedure).filter(UserProcedure.id == procedure_id).first()
+    if not procedure:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+    procedure.rule = req.rule
+    procedure.embedding = generate_embedding(req.rule)
     db.commit()
     return {"status": "success"}
 
@@ -259,6 +304,32 @@ def list_user_threads(user_id: str, db: Session = Depends(get_db)):
 def get_thread_messages(thread_id: str, db: Session = Depends(get_db)):
     messages = db.query(ChatMessage).filter(ChatMessage.thread_id == thread_id).order_by(ChatMessage.created_at.asc()).all()
     return messages
+
+@app.put("/api/threads/{thread_id}")
+def update_thread(thread_id: str, req: ThreadUpdate, db: Session = Depends(get_db)):
+    thread = db.query(ChatThread).filter(ChatThread.id == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    
+    thread.title = req.title
+    db.commit()
+    return {"status": "success", "title": thread.title}
+
+@app.delete("/api/threads/{thread_id}")
+def delete_thread(thread_id: str, db: Session = Depends(get_db)):
+    from database.models import UserEpisode, UserProcedure
+    
+    thread = db.query(ChatThread).filter(ChatThread.id == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    
+    # Also wipe out memory logic generated from this thread
+    db.query(UserEpisode).filter(UserEpisode.thread_id == thread_id).delete()
+    db.query(UserProcedure).filter(UserProcedure.source_thread_id == thread_id).delete()
+    
+    db.delete(thread)
+    db.commit()
+    return {"status": "success"}
 
 # --- Chat Endpoint ---
 
