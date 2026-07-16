@@ -65,6 +65,7 @@ class ChatRequest(BaseModel):
     user_id: str | None = None
     provider: str | None = None
     model: str | None = None
+    attached_context: str | None = None
 
 # Background task to save messages to DB and extract memories
 def save_chat_and_extract_memory(user_id: str | None, thread_id: str, user_message: str, assistant_response: str, plan: str, reasoning: str, routing: dict, metrics: dict):
@@ -322,9 +323,13 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             except Exception as hyd_err:
                 logger.error(f"[Hydration] Hydration failed: {hyd_err}", exc_info=True)
             
+            full_user_content = request.message
+            if getattr(request, "attached_context", None):
+                full_user_content = f"<details>\n<summary>📎 Attached Document</summary>\n\n{request.attached_context}\n</details>\n\n{request.message}"
+
             # Use LangGraph astream_events to listen to execution steps
             async for event in graph.astream_events(
-                {"messages": [HumanMessage(content=request.message)]},
+                {"messages": [HumanMessage(content=full_user_content)]},
                 config,
                 version="v2"
             ):
@@ -336,7 +341,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                     
                     if event["name"] == "analyze":
                         current_complexity = output.get("complexity", "simple")
-                        routing_metadata_dump = output.get("routing_metadata", {})
+                        routing_metadata_dump = {
+                            "intent": output.get("intent", "general"),
+                            "complexity": current_complexity,
+                            "routed_model": routed_model_id
+                        }
                         # Stream routing explanation to frontend
                         yield f"data: {json.dumps({'type': 'routing_debug', 'content': output})}\n\n"
 
@@ -461,7 +470,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 save_chat_and_extract_memory,
                 request.user_id,
                 request.thread_id,
-                request.message,
+                full_user_content,
                 accumulated_text,
                 accumulated_plan,
                 accumulated_reasoning,
@@ -559,6 +568,70 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         logger.error(f"[API] Transcribe failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
+@app.post("/api/upload-file")
+async def upload_file_endpoint(file: UploadFile = File(...)):
+    logger.info(f"[API] Upload file request: filename={file.filename}, type={file.content_type}")
+    
+    try:
+        content = await file.read()
+        mime_type = file.content_type or "application/octet-stream"
+        
+        # 1. PDF Handling
+        if file.filename.lower().endswith('.pdf'):
+            from pypdf import PdfReader
+            from io import BytesIO
+            
+            pdf = PdfReader(BytesIO(content))
+            extracted_text = ""
+            for i, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                if text:
+                    extracted_text += f"\n--- Page {i+1} ---\n{text}\n"
+                    
+            if not extracted_text.strip():
+                raise HTTPException(status_code=400, detail="No readable text found in the PDF.")
+                
+            logger.info(f"[API] PDF extracted successfully: {len(extracted_text)} characters")
+            return {"filename": file.filename, "content": extracted_text.strip()}
+            
+        # 2. Image, Audio, Video Handling via Gemini Flash
+        elif mime_type.startswith("image/") or mime_type.startswith("video/") or mime_type.startswith("audio/"):
+            google_api_key = os.environ.get("GOOGLE_API_KEY")
+            if not google_api_key:
+                raise HTTPException(status_code=500, detail="GOOGLE_API_KEY is not configured for multimodal extraction.")
+                
+            import google.generativeai as genai
+            genai.configure(api_key=google_api_key)
+            model = genai.GenerativeModel("gemini-3.5-flash")
+            
+            if mime_type.startswith("image/"):
+                prompt = "Please analyze this image in extreme detail. Describe all objects, people, colors, layout, and context. Extract and transcribe any readable text (OCR) exactly as it appears."
+            elif mime_type.startswith("video/"):
+                prompt = "Please provide a detailed description of the visual actions in this video, and include a full transcript of any spoken words or significant audio events."
+            else:
+                prompt = "Please provide a full, accurate transcript of this audio file. Output only the spoken words or key audio events."
+                
+            file_part = {
+                "mime_type": mime_type,
+                "data": content
+            }
+            
+            logger.info(f"[API] Sending {mime_type} to Gemini for extraction...")
+            response = model.generate_content([prompt, file_part])
+            
+            extracted_text = response.text
+            if not extracted_text:
+                raise HTTPException(status_code=400, detail="Could not extract information from the file.")
+                
+            logger.info(f"[API] Multimodal extraction successful: {len(extracted_text)} characters")
+            return {"filename": file.filename, "content": f"[Extracted from {file.filename}]\n\n{extracted_text.strip()}"}
+            
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type: {mime_type}")
+            
+    except Exception as e:
+        logger.error(f"[API] File upload/extraction failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"File extraction failed: {str(e)}")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

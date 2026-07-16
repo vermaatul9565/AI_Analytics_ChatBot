@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, MessageSquare, Mic, MicOff } from "lucide-react";
+import { Send, Sparkles, MessageSquare, Mic, MicOff, Paperclip, Image as ImageIcon, Video, Music, FileText } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import styles from "./ChatWindow.module.css";
 
@@ -71,6 +71,37 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
   const audioChunksRef = useRef<Blob[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [attachedFile, setAttachedFile] = useState<{ filename: string; content: string } | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
+  // Buffer for smooth streaming
+  const streamBufferRef = useRef<string>("");
+  const isTypingRef = useRef<boolean>(false);
+  const activeMessageIdRef = useRef<string | null>(null);
+
+  const processStreamBuffer = () => {
+    if (streamBufferRef.current.length > 0 && activeMessageIdRef.current) {
+      // Elastic smoothing: take more chars if buffer is large, otherwise 1
+      const charsToTake = Math.max(1, Math.floor(streamBufferRef.current.length / 8));
+      const chunk = streamBufferRef.current.substring(0, charsToTake);
+      streamBufferRef.current = streamBufferRef.current.substring(charsToTake);
+      
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === activeMessageIdRef.current
+            ? { ...msg, content: msg.content + chunk }
+            : msg
+        )
+      );
+      
+      setTimeout(processStreamBuffer, 16);
+    } else {
+      isTypingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     const fetchAvailability = async () => {
@@ -131,17 +162,26 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || isStreaming) return;
 
-    const userMsgId = `msg-${Date.now()}-user`;
-    const assistantMsgId = `msg-${Date.now()}-assistant`;
+    setIsStreaming(true);
+    const userMsgId = `msg-${Date.now()}`;
+    const assistantMsgId = `msg-${Date.now() + 1}`;
 
-    const userMessage: Message = {
-      id: userMsgId,
-      role: "user",
-      content: messageText,
-    };
+    let fullUserContent = messageText;
+    if (attachedFile) {
+      fullUserContent = `<details>\n<summary>📎 Attached File: ${attachedFile.filename}</summary>\n\n${attachedFile.content}\n</details>\n\n${messageText}`;
+    }
 
+    const userMessage: Message = { id: userMsgId, role: "user", content: fullUserContent };
+    
     setMessages((prev) => [...prev, userMessage]);
+    
+    // Capture attachment for API payload then clear it from UI
+    const currentAttachment = attachedFile;
+    setAttachedFile(null);
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     setIsStreaming(true);
 
     // Append placeholder for assistant response
@@ -149,6 +189,10 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
       ...prev,
       { id: assistantMsgId, role: "assistant", content: "" },
     ]);
+
+    streamBufferRef.current = "";
+    activeMessageIdRef.current = assistantMsgId;
+    isTypingRef.current = false;
 
     try {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -161,7 +205,8 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
           message: messageText,
           thread_id: threadId,
           user_id: activeUserId,
-          model: selectedModel
+          model: selectedModel === "auto" ? undefined : selectedModel,
+          attached_context: currentAttachment?.content || undefined
         }),
       });
 
@@ -194,13 +239,11 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
               const data = JSON.parse(jsonStr);
 
               if (data.type === "token") {
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMsgId
-                      ? { ...msg, content: msg.content + data.content }
-                      : msg
-                  )
-                );
+                streamBufferRef.current += data.content;
+                if (!isTypingRef.current) {
+                  isTypingRef.current = true;
+                  processStreamBuffer();
+                }
               } else if (data.type === "plan_debug") {
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -297,15 +340,57 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
       
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        stream.getTracks().forEach((track) => track.stop()); // release mic
-        await handleTranscribe(audioBlob);
+        stream.getTracks().forEach((track) => track.stop());
+        try {
+          await handleTranscribe(audioBlob);
+        } catch (err) {
+          console.error("Transcribe API error:", err);
+        }
       };
       
-      mediaRecorder.start();
+      mediaRecorderRef.current.start();
       setIsRecording(true);
     } catch (err) {
-      console.error("Failed to start audio recording:", err);
-      alert("Microphone access denied or error starting recording.");
+      console.error("Failed to start recording:", err);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['application/pdf', 'image/', 'video/', 'audio/'];
+    if (!allowedTypes.some(t => file.type.startsWith(t) || file.type === t)) {
+      alert("Unsupported file type. Please upload a PDF, image, video, or audio file.");
+      return;
+    }
+
+    setIsUploadingFile(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiBaseUrl}/api/upload-file`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAttachedFile({ filename: data.filename, content: data.content });
+      } else {
+        const errData = await response.json().catch(() => null);
+        alert(`Failed to upload file: ${errData?.detail || response.statusText}`);
+      }
+    } catch (err) {
+      console.error("File upload error:", err);
+      alert("Error uploading file.");
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -353,11 +438,49 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     }
   };
 
+  const renderUserMessage = (content: string) => {
+    const detailsRegex = /<details>[\s\S]*?<summary>(.*?)<\/summary>[\s\S]*?<\/details>\s*/i;
+    const match = content.match(detailsRegex);
+    
+    if (match) {
+      const summary = match[1];
+      const filename = summary.replace('📎 Attached File:', '').replace('📎 Attached Document', '').trim();
+      const textContent = content.replace(detailsRegex, '').trim();
+      
+      let FileIcon = Paperclip;
+      const lowerFile = filename.toLowerCase();
+      if (lowerFile.endsWith('.png') || lowerFile.endsWith('.jpg') || lowerFile.endsWith('.jpeg') || lowerFile.endsWith('.webp')) FileIcon = ImageIcon;
+      else if (lowerFile.endsWith('.mp4') || lowerFile.endsWith('.webm') || lowerFile.endsWith('.mov')) FileIcon = Video;
+      else if (lowerFile.endsWith('.mp3') || lowerFile.endsWith('.wav') || lowerFile.endsWith('.ogg')) FileIcon = Music;
+      else if (lowerFile.endsWith('.pdf')) FileIcon = FileText;
+      
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '6px', 
+            backgroundColor: 'rgba(255,255,255,0.2)', 
+            padding: '6px 12px', 
+            borderRadius: '16px', 
+            fontSize: '0.85rem',
+            width: 'fit-content'
+          }}>
+            <FileIcon size={14} />
+            <span style={{ fontWeight: 500 }}>{filename || 'Attached File'}</span>
+          </div>
+          <div>{textContent}</div>
+        </div>
+      );
+    }
+    return content;
+  };
+
   return (
     <div className={styles.window}>
       <header className={styles.header}>
         <div className={styles.titleArea}>
-          <h2 className={styles.title}>Assistant Node</h2>
+          <h2 className={styles.title}>SAGE</h2>
           <span className={styles.subtitle}>Session: {threadId || "Initializing..."}</span>
         </div>
         <div className={styles.badge}>
@@ -366,14 +489,18 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
         </div>
       </header>
 
-      <div className={styles.messagesArea}>
-        {messages.length === 0 ? (
-          <div className={styles.emptyState}>
-            <Sparkles className={styles.emptyIcon} size={48} style={{ color: "var(--accent-secondary)", opacity: 0.8 }} />
-            <h3 className={styles.emptyTitle}>Empower Your Data Decisions</h3>
-            <p className={styles.emptyDesc}>
-              Chat with your dynamic workspace to discover real-time web insights, retrieve knowledge, or analyze database systems.
-            </p>
+      <div className={`${styles.mainLayout} ${messages.length === 0 ? styles.layoutEmpty : styles.layoutActive}`}>
+        <div className={styles.messagesArea}>
+          {messages.length === 0 ? (
+            <div className={styles.emptyState}>
+              <Sparkles className={styles.emptyIcon} size={48} style={{ color: "var(--accent-secondary)", opacity: 0.8 }} />
+              <h3 className={styles.emptyTitle}>Welcome to SAGE</h3>
+              <p className={styles.emptyDesc}>
+                Smart Analytics & Generative Engine
+              </p>
+              <p className={styles.emptyDescSecondary}>
+                Your AI workspace for analytics, knowledge, reasoning, and intelligent assistance.
+              </p>
             
             <div className={styles.suggestionsGrid}>
               <div className={styles.suggestionCard} onClick={() => setInput("What are the latest breakthroughs in AI agents?")}>
@@ -420,7 +547,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
                 }`}
               >
                 {msg.role === "user" ? (
-                  msg.content
+                  renderUserMessage(msg.content)
                 ) : (
                   <div className={styles.assistantContainer}>
                     {/* Routing Badge */}
@@ -482,13 +609,58 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className={`${styles.inputArea} ${isFocused ? styles.inputAreaFocused : ""}`}>
-        <input
-          type="text"
+      <div className={styles.composerContainer}>
+        {attachedFile && (() => {
+          let FileIcon = Paperclip;
+          const lowerFile = attachedFile.filename.toLowerCase();
+          if (lowerFile.endsWith('.png') || lowerFile.endsWith('.jpg') || lowerFile.endsWith('.jpeg') || lowerFile.endsWith('.webp')) FileIcon = ImageIcon;
+          else if (lowerFile.endsWith('.mp4') || lowerFile.endsWith('.webm') || lowerFile.endsWith('.mov')) FileIcon = Video;
+          else if (lowerFile.endsWith('.mp3') || lowerFile.endsWith('.wav') || lowerFile.endsWith('.ogg')) FileIcon = Music;
+          else if (lowerFile.endsWith('.pdf')) FileIcon = FileText;
+          return (
+            <div className={styles.attachmentBadge}>
+              <FileIcon size={14} /> {attachedFile.filename}
+              <button type="button" onClick={() => setAttachedFile(null)} className={styles.attachmentRemove}>✕</button>
+            </div>
+          );
+        })()}
+        {isUploadingFile && (
+          <div className={styles.attachmentBadge}>
+            ⏳ Uploading & Extracting...
+          </div>
+        )}
+
+        {isRecording && (
+          <div className={styles.waveOverlay}>
+            <div className={styles.waveBar}></div>
+            <div className={styles.waveBar}></div>
+            <div className={styles.waveBar}></div>
+            <div className={styles.waveBar}></div>
+            <div className={styles.waveBar}></div>
+            <span className={styles.waveText}>Recording...</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className={`${styles.inputArea} ${isFocused ? styles.inputAreaFocused : ""}`}>
+        <textarea
+          ref={textareaRef}
           className={styles.input}
           placeholder={threadId ? "Ask me anything..." : "Initializing session..."}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          rows={1}
+          onChange={(e) => {
+            setInput(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (input.trim() && !isStreaming && threadId) {
+                handleSubmit(e as unknown as React.FormEvent);
+              }
+            }
+          }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           disabled={isStreaming || !threadId}
@@ -502,6 +674,23 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
           title={isRecording ? "Stop recording and transcribe" : "Record voice input"}
         >
           {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+        </button>
+
+        <input 
+          type="file" 
+          accept="application/pdf,image/*,video/*,audio/*" 
+          ref={fileInputRef} 
+          style={{ display: "none" }} 
+          onChange={handleFileUpload} 
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className={styles.micButton}
+          disabled={isStreaming || !threadId || isUploadingFile}
+          title="Attach Document, Image, Video, or Audio"
+        >
+          <Paperclip size={16} />
         </button>
 
         <div className={styles.inputModelSelectWrapper}>
@@ -527,6 +716,8 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
           <Send size={16} />
         </button>
       </form>
+      </div>
     </div>
+  </div>
   );
 }

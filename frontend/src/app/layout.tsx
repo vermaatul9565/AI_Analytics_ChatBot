@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Chat Analytics Dashboard",
-  description: "Stateful Chatbot with Generative Analytics and RAG Engine Capabilities",
+  title: "SAGE — Smart Analytics & Generative Engine",
+  description: "Enterprise-grade AI Workspace for analytics, knowledge, reasoning, and intelligent assistance.",
 };
 
 export default function RootLayout({

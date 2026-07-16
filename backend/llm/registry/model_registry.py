@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 
 class ModelMetadata(BaseModel):
@@ -344,6 +345,24 @@ class ModelRegistry:
             max_output_tokens=2048,
             quality_score=0.65,
             preferred_categories=["general_qa", "summarization", "writing"]
+        ),
+        "ollama-embeddinggemma:300m": ModelMetadata(
+            id="ollama-embeddinggemma:300m",
+            provider="ollama",
+            model_name="embeddinggemma:300m",
+            context_window=65000,
+            supports_vision=False,
+            supports_reasoning=False,
+            supports_tool_calling=False,
+            supports_json_mode=False,
+            supports_streaming=False,
+            input_token_cost_per_million=0.0,
+            output_token_cost_per_million=0.0,
+            latency_estimate_seconds=0.6,
+            reliability_score=0.95,
+            max_output_tokens=2048,
+            quality_score=0.65,
+            preferred_categories=["embedding"]
         ),
     }
 

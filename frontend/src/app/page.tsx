@@ -149,7 +149,7 @@ export default function Home() {
       <div className={styles.sidebar}>
         <div className={styles.logoArea}>
           <BrainCircuit className={styles.logoIcon} size={28} />
-          <span className={styles.logoText}>DataMind AI</span>
+          <span className={styles.logoText}>SAGE</span>
         </div>
 
         {/* User Switcher Info */}

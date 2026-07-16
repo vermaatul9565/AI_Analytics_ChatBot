@@ -84,8 +84,8 @@ export default function LoginPage() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
           <BrainCircuit size={48} style={{ color: "var(--accent-primary)" }} />
         </div>
-        <h1 className={styles.title}>DataMind AI</h1>
-        <p className={styles.subtitle}>Sign in to your account</p>
+        <h1 className={styles.title}>SAGE</h1>
+        <p className={styles.subtitle}>Smart Analytics & Generative Engine</p>
         
         <form onSubmit={handleLogin}>
           <div className={styles.formGroup}>
