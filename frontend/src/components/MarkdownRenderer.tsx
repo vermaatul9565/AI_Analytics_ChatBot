@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import Mermaid from "./Mermaid";
 import styles from "./MarkdownRenderer.module.css";
 
@@ -54,6 +54,27 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    const checkTheme = () => {
+      const isLight = document.documentElement.getAttribute("data-theme") === "light";
+      setTheme(isLight ? "light" : "dark");
+    };
+
+    const observer = new MutationObserver(checkTheme);
+    checkTheme();
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"]
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const syntaxTheme = theme === "light" ? oneLight : oneDark;
+
   return (
     <div className={styles.markdown}>
       <ReactMarkdown
@@ -85,7 +106,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                   <CopyButton text={codeString} />
                 </div>
                 <SyntaxHighlighter
-                  style={oneDark}
+                  style={syntaxTheme}
                   language={language}
                   PreTag="div"
                   customStyle={{
@@ -93,8 +114,8 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                     borderRadius: "0 0 8px 8px",
                     padding: "1rem",
                     fontSize: "0.85rem",
-                    background: "#1a1b26",
-                  }}w
+                    background: "var(--bg-tertiary)",
+                  }}
                   codeTagProps={{
                     style: {
                       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",

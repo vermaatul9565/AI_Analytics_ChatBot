@@ -148,13 +148,14 @@
 .inputArea {
   position: relative;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   background: var(--bg-secondary);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-radius: 20px;
+  padding: 0.75rem 1rem 0.5rem 1rem;
   transition: all 0.3s ease;
+  min-height: 100px;
 }
 
 .inputAreaFocused {
@@ -163,18 +164,37 @@
 }
 
 .input {
-  flex: 1;
+  width: 100%;
   background: transparent;
   border: none;
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.95rem;
   outline: none;
-  padding: 0.5rem 0;
+  padding: 0 0 0.75rem 0;
   resize: none;
-  max-height: 200px;
+  max-height: 250px;
   line-height: 1.5;
   overflow-y: auto;
+}
+
+.inputActionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.leftActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rightActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .input::placeholder {
@@ -187,7 +207,7 @@
   color: var(--text-primary);
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -349,7 +369,6 @@
   position: relative;
   display: flex;
   align-items: center;
-  margin-right: 0.75rem;
 }
 
 .inputModelSelect {
@@ -460,27 +479,26 @@
   margin: 0 0.4rem;
 }
 
-.micButton {
+.actionButton {
   background: transparent;
   border: none;
   color: var(--text-muted);
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  margin-right: 0.5rem;
   transition: all 0.2s ease;
 }
 
-.micButton:hover {
+.actionButton:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.05);
 }
 
-.micButton:disabled {
+.actionButton:disabled {
   color: var(--text-tertiary);
   cursor: not-allowed;
   background: transparent;

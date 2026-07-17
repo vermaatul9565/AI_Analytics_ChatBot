@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, MessageSquare, Mic, MicOff, Paperclip, Image as ImageIcon, Video, Music, FileText } from "lucide-react";
+import { Send, Sparkles, MessageSquare, Mic, MicOff, Paperclip, Plus, Image as ImageIcon, Video, Music, FileText } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import styles from "./ChatWindow.module.css";
 
@@ -670,55 +670,59 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
           disabled={isStreaming || !threadId}
         />
         
-        <button
-          type="button"
-          onClick={isRecording ? handleStopRecording : handleStartRecording}
-          className={`${styles.micButton} ${isRecording ? styles.micButtonRecording : ""}`}
-          disabled={isStreaming || !threadId}
-          title={isRecording ? "Stop recording and transcribe" : "Record voice input"}
-        >
-          {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
-        </button>
-
-        <input 
-          type="file" 
-          accept="application/pdf,image/*,video/*,audio/*" 
-          ref={fileInputRef} 
-          style={{ display: "none" }} 
-          onChange={handleFileUpload} 
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className={styles.micButton}
-          disabled={isStreaming || !threadId || isUploadingFile}
-          title="Attach Document, Image, Video, or Audio"
-        >
-          <Paperclip size={16} />
-        </button>
-
-        <div className={styles.inputModelSelectWrapper}>
-          <select
-            className={styles.inputModelSelect}
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            disabled={isStreaming || !threadId}
-          >
-            {UNIFIED_MODELS.map(m => {
-              const isConfigured = m.provider === "auto" || providerAvailability[m.provider] !== false;
-              const displayName = isConfigured ? m.name : `${m.name} (API key not configured)`;
-              return (
-                <option key={m.id} value={m.id} disabled={!isConfigured}>
-                  {displayName}
-                </option>
-              );
-            })}
-          </select>
+        <div className={styles.inputActionsRow}>
+          <div className={styles.leftActions}>
+            <input 
+              type="file" 
+              accept="application/pdf,image/*,video/*,audio/*" 
+              ref={fileInputRef} 
+              style={{ display: "none" }} 
+              onChange={handleFileUpload} 
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={styles.actionButton}
+              disabled={isStreaming || !threadId || isUploadingFile}
+              title="Attach Document, Image, Video, or Audio"
+            >
+              <Plus size={20} />
+            </button>
+            <div className={styles.inputModelSelectWrapper}>
+              <select
+                className={styles.inputModelSelect}
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={isStreaming || !threadId}
+              >
+                {UNIFIED_MODELS.map(m => {
+                  const isConfigured = m.provider === "auto" || providerAvailability[m.provider] !== false;
+                  const displayName = isConfigured ? m.name : `${m.name} (API key not configured)`;
+                  return (
+                    <option key={m.id} value={m.id} disabled={!isConfigured}>
+                      {displayName}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+          
+          <div className={styles.rightActions}>
+            <button
+              type="button"
+              onClick={isRecording ? handleStopRecording : handleStartRecording}
+              className={`${styles.actionButton} ${isRecording ? styles.micButtonRecording : ""}`}
+              disabled={isStreaming || !threadId}
+              title={isRecording ? "Stop recording and transcribe" : "Record voice input"}
+            >
+              {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+            <button type="submit" className={styles.sendButton} disabled={!input.trim() || isStreaming || !threadId}>
+              <Send size={16} />
+            </button>
+          </div>
         </div>
-
-        <button type="submit" className={styles.sendButton} disabled={!input.trim() || isStreaming || !threadId}>
-          <Send size={16} />
-        </button>
       </form>
       </div>
     </div>
