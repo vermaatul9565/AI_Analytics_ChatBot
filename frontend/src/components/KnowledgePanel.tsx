@@ -175,10 +175,10 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
     <div className={styles.workspace}>
       <header className={styles.header}>
         <div className={styles.titleArea}>
-          <BookOpen className={styles.headerIcon} size={22} />
+          <User className={styles.headerIcon} size={22} style={{ color: "var(--accent-secondary)" }} />
           <div>
-            <h2 className={styles.title}>Knowledge Base & Wiki Memory</h2>
-            <span className={styles.subtitle}>Manage SAGE's cognitive state, semantic index, rules, and profile attributes.</span>
+            <h2 className={styles.title}>User Profile & Long-Term Memory</h2>
+            <span className={styles.subtitle}>Manage SAGE's personalized profile settings, behavioral rules, and long-term memory elements.</span>
           </div>
         </div>
         <button className={styles.refreshBtn} onClick={() => fetchWikiMemory(activeUserId)} title="Sync database">

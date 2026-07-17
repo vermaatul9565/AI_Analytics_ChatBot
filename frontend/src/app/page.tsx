@@ -25,7 +25,7 @@ export default function Home() {
   const [activeUserId, setActiveUserId] = useState<string>("");
   const [activeUsername, setActiveUsername] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("user");
-  const [view, setView] = useState<"chat" | "knowledge" | "analytics" | "automations" | "settings">("chat");
+  const [view, setView] = useState<"chat" | "profile" | "knowledge" | "analytics" | "automations" | "settings">("chat");
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
@@ -243,13 +243,7 @@ export default function Home() {
           <span className={styles.logoText}>SAGE</span>
         </div>
 
-        {/* User context Profile Badge */}
-        <div className={styles.userProfileArea}>
-          <div className={styles.avatarMini}>
-            {activeUsername.substring(0, 2).toUpperCase()}
-          </div>
-          <span className={styles.activeUserLabel}>{activeUsername}</span>
-        </div>
+
 
         {/* Persistent Workspace Selection Links */}
         <div className={styles.workspaceSection}>
@@ -375,14 +369,27 @@ export default function Home() {
           )}
         </div>
 
-        {/* Sidebar Footer Controls */}
+        {/* Sidebar Footer Controls like Gemini */}
         <div className={styles.sidebarFooter}>
-          <button 
-            className={`${styles.settingsButton} ${view === "settings" ? styles.settingsButtonActive : ""}`}
-            onClick={() => setView("settings")}
+          <div 
+            className={`${styles.userProfileFooter} ${view === "profile" ? styles.userProfileFooterActive : ""}`}
+            onClick={() => setView("profile")}
+            title="View profile & long-term memory"
           >
-            <Settings size={14} />
-            <span>Settings & Rules</span>
+            <div className={styles.avatarMini}>
+              {activeUsername.substring(0, 2).toUpperCase()}
+            </div>
+            <div className={styles.profileTextWrapper}>
+              <span className={styles.activeUserLabel}>{activeUsername}</span>
+            </div>
+          </div>
+          
+          <button 
+            className={`${styles.settingsIconBtn} ${view === "settings" ? styles.settingsIconBtnActive : ""}`}
+            onClick={() => setView("settings")}
+            title="System Settings"
+          >
+            <Settings size={16} />
           </button>
         </div>
       </div>
@@ -392,8 +399,22 @@ export default function Home() {
         {view === "chat" && (
           <ChatWindow threadId={threadId} activeUserId={activeUserId} activeUsername={activeUsername} />
         )}
-        {view === "knowledge" && (
+        {view === "profile" && (
           <KnowledgePanel activeUserId={activeUserId} />
+        )}
+        {view === "knowledge" && (
+          <div className={styles.placeholderWorkspace}>
+            <BookOpen size={36} className={styles.placeholderIcon} />
+            <h3 className={styles.placeholderTitle}>Internal Documentation Knowledge Base (RAG)</h3>
+            <p className={styles.placeholderDesc}>
+              Connect internal documentation sources (PDFs, Markdown wikis, web scraping logs) to ground SAGE answers on custom enterprise knowledge databases.
+            </p>
+            <div className={styles.placeholderActionBadge} style={{ color: "var(--accent-primary)", borderColor: "rgba(59, 130, 246, 0.2)" }}>
+              <Play size={12} />
+              <span>Phase 2 Target (Locked)</span>
+            </div>
+            <button className={styles.placeholderBtn} onClick={() => setView("chat")}>Return to Conversations</button>
+          </div>
         )}
         {view === "settings" && (
           <SettingsPanel
