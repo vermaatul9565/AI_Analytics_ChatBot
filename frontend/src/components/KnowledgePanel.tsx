@@ -43,8 +43,8 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
   const [searchQuery, setSearchQuery] = useState("");
   
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileJson, setProfileJson] = useState("");
-  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [tempProfile, setTempProfile] = useState<Record<string, any>>({});
+  const [newTagInputs, setNewTagInputs] = useState<Record<string, string>>({});
 
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editingItemType, setEditingItemType] = useState<"episodes" | "procedures" | "facts" | null>(null);
@@ -69,7 +69,12 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
       ]);
       
       if (memRes.ok) setMemories(await memRes.json());
-      if (profRes.ok) setProfile(await profRes.json());
+      
+      if (profRes.ok) {
+        const profData = await profRes.json();
+        setProfile(profData);
+      }
+      
       if (epRes.ok) setEpisodes(await epRes.json());
       if (procRes.ok) setProcedures(await procRes.json());
     } catch (err) {
@@ -79,24 +84,81 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
     }
   };
 
-  const handleSaveProfileJSON = async () => {
+  const handleSaveProfileFields = async () => {
     try {
-      const parsed = JSON.parse(profileJson);
-      setJsonError(null);
       const res = await fetch(`${apiBaseUrl}/api/users/${activeUserId}/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: parsed })
+        body: JSON.stringify({ profile: tempProfile })
       });
       if (res.ok) {
-        setProfile(parsed);
+        setProfile(tempProfile);
         setEditingProfile(false);
       } else {
-        setJsonError("Failed to save profile on backend");
+        alert("Failed to save profile changes");
       }
-    } catch (err: any) {
-      setJsonError(`Invalid JSON format: ${err.message}`);
+    } catch (err) {
+      console.error("Error saving profile changes:", err);
+      alert("Error saving profile changes");
     }
+  };
+
+  const handleRemoveTag = (category: string, key: string | null, index: number) => {
+    setTempProfile(prev => {
+      const updated = JSON.parse(JSON.stringify(prev)); // Deep clone
+      if (key) {
+        const arr = [...(updated[category][key] || [])];
+        arr.splice(index, 1);
+        updated[category][key] = arr;
+      } else {
+        const arr = [...(updated[category] || [])];
+        arr.splice(index, 1);
+        updated[category] = arr;
+      }
+      return updated;
+    });
+  };
+
+  const handleAddTag = (category: string, key: string | null) => {
+    const inputKey = key ? `${category}.${key}` : category;
+    const tagVal = newTagInputs[inputKey]?.trim();
+    if (!tagVal) return;
+
+    setTempProfile(prev => {
+      const updated = JSON.parse(JSON.stringify(prev)); // Deep clone
+      if (key) {
+        const arr = [...(updated[category][key] || [])];
+        if (!arr.includes(tagVal)) {
+          arr.push(tagVal);
+        }
+        updated[category][key] = arr;
+      } else {
+        const arr = [...(updated[category] || [])];
+        if (!arr.includes(tagVal)) {
+          arr.push(tagVal);
+        }
+        updated[category] = arr;
+      }
+      return updated;
+    });
+
+    setNewTagInputs(prev => ({ ...prev, [inputKey]: "" }));
+  };
+
+  const handleDeleteField = (category: string, key: string | null) => {
+    if (!confirm(key ? `Are you sure you want to delete the "${key}" field?` : `Are you sure you want to delete the "${category}" section?`)) return;
+    setTempProfile(prev => {
+      const updated = JSON.parse(JSON.stringify(prev)); // Deep clone
+      if (key) {
+        delete updated[category][key];
+        if (Object.keys(updated[category]).length === 0) {
+          delete updated[category];
+        }
+      } else {
+        delete updated[category];
+      }
+      return updated;
+    });
   };
 
   const handleDeleteMemory = async (type: "episodes" | "procedures" | "memories", id: number) => {
@@ -142,7 +204,6 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
     setEditingItemId(null);
   };
 
-  // Counting attributes helper for stats card
   const countProfileAttributes = () => {
     let count = 0;
     Object.values(profile).forEach(cat => {
@@ -157,7 +218,6 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
     return count;
   };
 
-  // Filters for tabs search
   const filteredEpisodes = episodes.filter(e => 
     e.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
     e.thread_id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -170,6 +230,50 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
   const filteredMemories = memories.filter(m => 
     m.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const renderTagsEditor = (category: string, key: string | null, currentArray: any[]) => {
+    const inputKey = key ? `${category}.${key}` : category;
+    return (
+      <div className={styles.editTagsWrapper}>
+        <div className={styles.profileTagsListEdit}>
+          {currentArray.map((tag, index) => (
+            <span key={index} className={styles.profileTagEdit}>
+              {typeof tag === "object" ? JSON.stringify(tag) : String(tag)}
+              <button
+                type="button"
+                className={styles.removeTagBtn}
+                onClick={() => handleRemoveTag(category, key, index)}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className={styles.addTagInputRow}>
+          <input
+            type="text"
+            placeholder="Add value..."
+            className={styles.addTagInput}
+            value={newTagInputs[inputKey] ?? ""}
+            onChange={(e) => setNewTagInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddTag(category, key);
+              }
+            }}
+          />
+          <button
+            type="button"
+            className={styles.addTagBtn}
+            onClick={() => handleAddTag(category, key)}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={styles.workspace}>
@@ -280,14 +384,14 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
               ) : (
                 <div className={styles.profileWorkspace}>
                   <div className={styles.profileActionsRow}>
-                    <span className={styles.panelMeta}>This JSON summarizes everything SAGE knows about your work stack, preferences, and personal details.</span>
+                    <span className={styles.panelMeta}>Review and modify your work stack, preferences, and personal details directly below.</span>
                     {!editingProfile ? (
-                      <button className={styles.editRawBtn} onClick={() => { setProfileJson(JSON.stringify(profile, null, 2)); setEditingProfile(true); setJsonError(null); }}>
-                        <Pencil size={12} /> Edit raw data
+                      <button className={styles.editRawBtn} onClick={() => { setTempProfile(JSON.parse(JSON.stringify(profile))); setEditingProfile(true); }}>
+                        <Pencil size={12} /> Edit profile attributes
                       </button>
                     ) : (
                       <div className={styles.profileEditingControls}>
-                        <button className={styles.saveProfileBtn} onClick={handleSaveProfileJSON}>
+                        <button className={styles.saveProfileBtn} onClick={handleSaveProfileFields}>
                           <Check size={12} /> Save changes
                         </button>
                         <button className={styles.cancelProfileBtn} onClick={() => setEditingProfile(false)}>
@@ -297,37 +401,78 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
                     )}
                   </div>
 
-                  {editingProfile ? (
-                    <div className={styles.jsonEditorContainer}>
-                      <textarea
-                        className={styles.jsonTextarea}
-                        value={profileJson}
-                        onChange={(e) => setProfileJson(e.target.value)}
-                        autoFocus
-                      />
-                      {jsonError && (
-                        <div className={styles.jsonErrorBadge}>
-                          <AlertCircle size={14} />
-                          <span>{jsonError}</span>
+                  <div className={styles.profileGrid}>
+                    {Object.entries(editingProfile ? tempProfile : profile).map(([category, catValue]) => (
+                      <div key={category} className={styles.profileCard}>
+                        <div className={styles.profileCardHeader}>
+                          {category.replace(/_/g, ' ')}
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className={styles.profileGrid}>
-                      {Object.entries(profile).map(([category, catValue]) => (
-                        <div key={category} className={styles.profileCard}>
-                          <div className={styles.profileCardHeader}>
-                            {category.replace(/_/g, ' ')}
-                          </div>
-                          <div className={styles.profileCardBody}>
-                            {typeof catValue === "object" && !Array.isArray(catValue) ? (
-                              Object.entries(catValue).map(([key, val]) => (
-                                <div key={key} className={styles.profileItem}>
-                                  <span className={styles.profileKey}>{key.replace(/_/g, ' ')}</span>
-                                  <span className={styles.profileVal}>{typeof val === "object" ? JSON.stringify(val) : String(val)}</span>
-                                </div>
-                              ))
-                            ) : Array.isArray(catValue) ? (
+                        <div className={styles.profileCardBody}>
+                          {typeof catValue === "object" && !Array.isArray(catValue) ? (
+                            Object.entries(catValue).map(([key, val]) => (
+                              <div key={key} className={styles.profileItem}>
+                                <span className={styles.profileKey}>{key.replace(/_/g, ' ')}</span>
+                                {editingProfile ? (
+                                  <div className={styles.profileEditRow}>
+                                    {Array.isArray(val) ? (
+                                      renderTagsEditor(category, key, val)
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        className={styles.profileInput}
+                                        value={String(val)}
+                                        onChange={(e) => {
+                                          const newVal = e.target.value;
+                                          setTempProfile(prev => ({
+                                            ...prev,
+                                            [category]: {
+                                              ...prev[category],
+                                              [key]: newVal
+                                            }
+                                          }));
+                                        }}
+                                      />
+                                    )}
+                                    <button
+                                      type="button"
+                                      className={styles.deleteFieldBtn}
+                                      onClick={() => handleDeleteField(category, key)}
+                                      title={`Delete field "${key}"`}
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className={styles.profileVal}>
+                                    {Array.isArray(val) ? (
+                                      <div className={styles.profileTagsList}>
+                                        {val.map((v, i) => (
+                                          <span key={i} className={styles.profileTag}>
+                                            {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      String(val)
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            ))
+                          ) : Array.isArray(catValue) ? (
+                            editingProfile ? (
+                              <div className={styles.profileEditRow}>
+                                {renderTagsEditor(category, null, catValue)}
+                                <button
+                                  type="button"
+                                  className={styles.deleteFieldBtn}
+                                  onClick={() => handleDeleteField(category, null)}
+                                  title={`Delete section "${category}"`}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            ) : (
                               <div className={styles.profileTagsList}>
                                 {catValue.map((v, i) => (
                                   <span key={i} className={styles.profileTag}>
@@ -335,14 +480,39 @@ export default function KnowledgePanel({ activeUserId, onClose }: KnowledgePanel
                                   </span>
                                 ))}
                               </div>
+                            )
+                          ) : (
+                            editingProfile ? (
+                              <div className={styles.profileEditRow}>
+                                <input
+                                  type="text"
+                                  className={styles.profileInput}
+                                  value={String(catValue)}
+                                  onChange={(e) => {
+                                    const newVal = e.target.value;
+                                    setTempProfile(prev => ({
+                                      ...prev,
+                                      [category]: newVal
+                                    }));
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className={styles.deleteFieldBtn}
+                                  onClick={() => handleDeleteField(category, null)}
+                                  title={`Delete section "${category}"`}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             ) : (
                               <div className={styles.profileValText}>{String(catValue)}</div>
-                            )}
-                          </div>
+                            )
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )
             )}

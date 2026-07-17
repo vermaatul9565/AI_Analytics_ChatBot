@@ -86,6 +86,8 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
   // Accordion state for collapsed intermediate thoughts
   const [expandedThoughts, setExpandedThoughts] = useState<Record<string, boolean>>({});
 
+  const [backendStatus, setBackendStatus] = useState<"online" | "checking" | "offline">("checking");
+
   // Buffer for smooth streaming
   const streamBufferRef = useRef<string>("");
   const isTypingRef = useRef<boolean>(false);
@@ -125,6 +127,30 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
       }
     };
     fetchAvailability();
+  }, []);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiBaseUrl}/api/health`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.status === "healthy") {
+            setBackendStatus("online");
+            return;
+          }
+        }
+        setBackendStatus("offline");
+      } catch (err) {
+        console.error("Health check failed:", err);
+        setBackendStatus("offline");
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   // Auto-scroll to bottom when messages update
@@ -499,9 +525,21 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
           <h2 className={styles.title}>SAGE Chat Workspace</h2>
           <span className={styles.subtitle}>Active Session ID: {threadId || "Initializing..."}</span>
         </div>
-        <div className={styles.badge}>
+        <div className={`${styles.badge} ${
+          backendStatus === "online" 
+            ? styles.badgeOnline 
+            : backendStatus === "offline" 
+            ? styles.badgeOffline 
+            : styles.badgeChecking
+        }`}>
           <div className={styles.badgeDot}></div>
-          <span>LangGraph Engine Grounded</span>
+          <span>
+            {backendStatus === "online" 
+              ? "LangGraph Engine Grounded" 
+              : backendStatus === "offline" 
+              ? "SAGE Connection Offline" 
+              : "Checking connectivity..."}
+          </span>
         </div>
       </header>
 

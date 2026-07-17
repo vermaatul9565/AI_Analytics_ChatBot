@@ -160,6 +160,10 @@ def signup(req: AuthRequest, db: Session = Depends(get_db)):
     db.commit()
     return new_user
 
+@app.get("/api/health")
+def health_check():
+    return {"status": "healthy", "engine": "LangGraph"}
+
 @app.get("/api/users")
 def list_users(db: Session = Depends(get_db)):
     users = db.query(User).all()

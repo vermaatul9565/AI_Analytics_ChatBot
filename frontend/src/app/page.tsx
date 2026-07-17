@@ -239,7 +239,12 @@ export default function Home() {
       <div className={styles.sidebar}>
         {/* Logo area */}
         <div className={styles.logoArea}>
-          <BrainCircuit className={styles.logoIcon} size={22} />
+          <img 
+            src="/sage-custom-logo-icon.png" 
+            alt="SAGE Logo" 
+            className={styles.logoIcon}
+            style={{ width: "24px", height: "24px", objectFit: "contain" }}
+          />
           <span className={styles.logoText}>SAGE</span>
         </div>
 

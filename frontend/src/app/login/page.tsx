@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BrainCircuit } from "lucide-react";
+
 import styles from "./login.module.css";
 
 export default function LoginPage() {
@@ -81,11 +81,13 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <div className={styles.loginBox}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <BrainCircuit size={48} style={{ color: "var(--accent-primary)" }} />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.25rem' }}>
+          <img 
+            src="/sage-custom-logo-full.png" 
+            alt="SAGE — Smart Analytics & Generative Engine" 
+            style={{ width: "100%", maxWidth: "340px", height: "auto", filter: "drop-shadow(0 0 16px rgba(6, 182, 212, 0.2))" }} 
+          />
         </div>
-        <h1 className={styles.title}>SAGE</h1>
-        <p className={styles.subtitle}>Smart Analytics & Generative Engine</p>
         
         <form onSubmit={handleLogin}>
           <div className={styles.formGroup}>
