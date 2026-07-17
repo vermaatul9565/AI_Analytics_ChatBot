@@ -4,20 +4,32 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ChatWindow from "@/components/ChatWindow";
 import SettingsPanel from "@/components/SettingsPanel";
-import { MessageSquare, Plus, BrainCircuit, BarChart2, Database, CircleDot, Sun, Moon, Monitor, Settings, Users, Pencil, Trash2 } from "lucide-react";
+import KnowledgePanel from "@/components/KnowledgePanel";
+import { 
+  MessageSquare, Plus, BrainCircuit, BarChart2, 
+  Database, CircleDot, Settings, Users, Pencil, Trash2, 
+  Search, BookOpen, Clock, Play
+} from "lucide-react";
 import styles from "./page.module.css";
+
+interface ChatThread {
+  id: string;
+  label: string;
+  createdAt?: Date;
+}
 
 export default function Home() {
   const [threadId, setThreadId] = useState<string>("");
-  const [threads, setThreads] = useState<{ id: string; label: string }[]>([]);
+  const [threads, setThreads] = useState<ChatThread[]>([]);
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [activeUserId, setActiveUserId] = useState<string>("");
   const [activeUsername, setActiveUsername] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("user");
-  const [view, setView] = useState<"chat" | "settings">("chat");
+  const [view, setView] = useState<"chat" | "knowledge" | "analytics" | "automations" | "settings">("chat");
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
+  const [searchThreadQuery, setSearchThreadQuery] = useState("");
 
   const router = useRouter();
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -60,7 +72,8 @@ export default function Home() {
         const data = await res.json();
         const formattedThreads = data.map((t: any) => ({
           id: t.id,
-          label: t.title || "Untitled Chat"
+          label: t.title || "Untitled Chat",
+          createdAt: t.created_at ? new Date(t.created_at) : new Date()
         }));
         setThreads(formattedThreads);
         
@@ -133,7 +146,7 @@ export default function Home() {
   const handleNewChat = () => {
     const newId = `session-${Math.random().toString(36).substring(2, 11)}`;
     setThreadId(newId);
-    setThreads(prev => [{ id: newId, label: `Chat Session ${prev.length + 1}` }, ...prev]);
+    setThreads(prev => [{ id: newId, label: `Chat Session ${prev.length + 1}`, createdAt: new Date() }, ...prev]);
     setView("chat");
   };
 
@@ -179,151 +192,244 @@ export default function Home() {
     }
   };
 
+  // Group threads chronologically
+  const getGroupedThreads = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const groups: { [key: string]: ChatThread[] } = {
+      "Today": [],
+      "Yesterday": [],
+      "Previous 7 Days": [],
+      "Older": []
+    };
+
+    const filtered = threads.filter(t => 
+      t.label.toLowerCase().includes(searchThreadQuery.toLowerCase())
+    );
+
+    filtered.forEach(t => {
+      const threadDate = t.createdAt ? new Date(t.createdAt) : new Date();
+      if (threadDate >= today) {
+        groups["Today"].push(t);
+      } else if (threadDate >= yesterday) {
+        groups["Yesterday"].push(t);
+      } else if (threadDate >= oneWeekAgo) {
+        groups["Previous 7 Days"].push(t);
+      } else {
+        groups["Older"].push(t);
+      }
+    });
+
+    return groups;
+  };
+
   if (isAuthChecking) {
-    return null; // Or a loading spinner
+    return null;
   }
+
+  const groupedThreads = getGroupedThreads();
 
   return (
     <main className={styles.container}>
       <div className={styles.sidebar}>
+        {/* Logo area */}
         <div className={styles.logoArea}>
-          <BrainCircuit className={styles.logoIcon} size={28} />
+          <BrainCircuit className={styles.logoIcon} size={22} />
           <span className={styles.logoText}>SAGE</span>
         </div>
 
-        {/* User Switcher Info */}
+        {/* User context Profile Badge */}
         <div className={styles.userProfileArea}>
-          <Users size={16} className={styles.userProfileIcon} />
+          <div className={styles.avatarMini}>
+            {activeUsername.substring(0, 2).toUpperCase()}
+          </div>
           <span className={styles.activeUserLabel}>{activeUsername}</span>
         </div>
 
-        <button className={styles.newChatButton} onClick={handleNewChat}>
-          <Plus size={18} />
-          New Chat
-        </button>
+        {/* Persistent Workspace Selection Links */}
+        <div className={styles.workspaceSection}>
+          <h4 className={styles.sidebarHeader}>Workspace Modules</h4>
+          <div className={styles.workspaceList}>
+            <button 
+              className={`${styles.workspaceLink} ${view === "chat" ? styles.workspaceLinkActive : ""}`}
+              onClick={() => setView("chat")}
+            >
+              <MessageSquare size={16} />
+              <span>Conversational Chat</span>
+            </button>
+            <button 
+              className={`${styles.workspaceLink} ${view === "knowledge" ? styles.workspaceLinkActive : ""}`}
+              onClick={() => setView("knowledge")}
+            >
+              <BookOpen size={16} />
+              <span>Knowledge Base</span>
+            </button>
+            <button 
+              className={`${styles.workspaceLink} ${view === "analytics" ? styles.workspaceLinkActive : ""}`}
+              onClick={() => setView("analytics")}
+            >
+              <BarChart2 size={16} />
+              <span>Database Analytics</span>
+            </button>
+            <button 
+              className={`${styles.workspaceLink} ${view === "automations" ? styles.workspaceLinkActive : ""}`}
+              onClick={() => setView("automations")}
+            >
+              <Database size={16} />
+              <span>Agents & Automations</span>
+            </button>
+          </div>
+        </div>
 
+        <div className={styles.divider}></div>
+
+        {/* Active chats control */}
+        <div className={styles.chatHistoryControl}>
+          <button className={styles.newChatButton} onClick={handleNewChat}>
+            <Plus size={14} />
+            <span>New Session</span>
+          </button>
+
+          <div className={styles.historySearchWrapper}>
+            <Search size={12} className={styles.searchIcon} />
+            <input 
+              type="text" 
+              placeholder="Search chat sessions..." 
+              value={searchThreadQuery}
+              onChange={(e) => setSearchThreadQuery(e.target.value)}
+              className={styles.historySearchInput}
+            />
+          </div>
+        </div>
+
+        {/* Thread History list grouped chronologically */}
         <div className={styles.historySection}>
-          <h3 className={styles.historyTitle}>Active Chats</h3>
-          <div className={styles.threadList}>
-            {threads.length === 0 ? (
-              <span className={styles.noHistoryText}>No threads found</span>
-            ) : (
-              threads.map(t => (
-                <div
-                  key={t.id}
-                  className={t.id === threadId && view === "chat" ? styles.threadItemActive : styles.threadItem}
-                  onClick={() => handleSelectThread(t.id)}
-                >
-                  <MessageSquare size={16} />
-                  {editingThreadId === t.id ? (
-                    <input
-                      type="text"
-                      className={styles.editInput}
-                      value={editTitleValue}
-                      onChange={(e) => setEditTitleValue(e.target.value)}
-                      onBlur={() => handleRenameThread(t.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleRenameThread(t.id);
-                        if (e.key === "Escape") setEditingThreadId(null);
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <span className={styles.threadText}>{t.label}</span>
-                  )}
-                  {t.id === threadId && view === "chat" && !editingThreadId && (
-                    <CircleDot size={8} style={{ color: "var(--accent-secondary)", marginLeft: "auto" }} />
-                  )}
-                  {!editingThreadId && (
-                    <div className={styles.threadActions}>
-                      <button
-                        className={styles.actionButton}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingThreadId(t.id);
-                          setEditTitleValue(t.label);
-                        }}
-                        title="Rename Chat"
+          {threads.length === 0 ? (
+            <span className={styles.noHistoryText}>No sessions found</span>
+          ) : (
+            Object.entries(groupedThreads).map(([groupTitle, groupItems]) => {
+              if (groupItems.length === 0) return null;
+              return (
+                <div key={groupTitle} className={styles.historyGroup}>
+                  <h4 className={styles.historyGroupTitle}>{groupTitle}</h4>
+                  <div className={styles.threadList}>
+                    {groupItems.map(t => (
+                      <div
+                        key={t.id}
+                        className={t.id === threadId && view === "chat" ? styles.threadItemActive : styles.threadItem}
+                        onClick={() => handleSelectThread(t.id)}
                       >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        className={styles.actionButton}
-                        onClick={(e) => handleDeleteThread(e, t.id)}
-                        title="Delete Chat"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )}
+                        <MessageSquare size={14} className={styles.threadIcon} />
+                        {editingThreadId === t.id ? (
+                          <input
+                            type="text"
+                            className={styles.editInput}
+                            value={editTitleValue}
+                            onChange={(e) => setEditTitleValue(e.target.value)}
+                            onBlur={() => handleRenameThread(t.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleRenameThread(t.id);
+                              if (e.key === "Escape") setEditingThreadId(null);
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <span className={styles.threadText}>{t.label}</span>
+                        )}
+                        {t.id === threadId && view === "chat" && !editingThreadId && (
+                          <CircleDot size={6} className={styles.activeDot} />
+                        )}
+                        {!editingThreadId && (
+                          <div className={styles.threadActions}>
+                            <button
+                              className={styles.actionButton}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingThreadId(t.id);
+                                setEditTitleValue(t.label);
+                              }}
+                              title="Rename Session"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              className={styles.actionButton}
+                              onClick={(e) => handleDeleteThread(e, t.id)}
+                              title="Delete Session"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
 
-        {/* Settings Toggle Link */}
-        <button 
-          className={`${styles.settingsButton} ${view === "settings" ? styles.settingsButtonActive : ""}`}
-          onClick={() => setView(view === "chat" ? "settings" : "chat")}
-        >
-          <Settings size={16} />
-          {view === "chat" ? "Settings & Memories" : "Back to Chat"}
-        </button>
-
-        <div className={styles.themeSection}>
-          <h3 className={styles.themeTitle}>Theme Mode</h3>
-          <div className={styles.themeButtons}>
-            <button
-              className={`${styles.themeButton} ${theme === "light" ? styles.themeButtonActive : ""}`}
-              onClick={() => handleThemeChange("light")}
-            >
-              <Sun size={14} />
-              Light
-            </button>
-            <button
-              className={`${styles.themeButton} ${theme === "dark" ? styles.themeButtonActive : ""}`}
-              onClick={() => handleThemeChange("dark")}
-            >
-              <Moon size={14} />
-              Dark
-            </button>
-            <button
-              className={`${styles.themeButton} ${theme === "system" ? styles.themeButtonActive : ""}`}
-              onClick={() => handleThemeChange("system")}
-            >
-              <Monitor size={14} />
-              System
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.footer}>
-          <div className={`${styles.footerItem} ${styles.footerItemActive}`}>
-            <BrainCircuit size={16} style={{ color: "var(--accent-secondary)" }} />
-            <span style={{ color: "var(--text-primary)" }}>Phase 1: Chatbot (Active)</span>
-          </div>
-          <div className={styles.footerItem}>
-            <Database size={16} />
-            <span>Phase 2: RAG (Locked)</span>
-          </div>
-          <div className={styles.footerItem}>
-            <BarChart2 size={16} />
-            <span>Phase 3: Analysis (Locked)</span>
-          </div>
+        {/* Sidebar Footer Controls */}
+        <div className={styles.sidebarFooter}>
+          <button 
+            className={`${styles.settingsButton} ${view === "settings" ? styles.settingsButtonActive : ""}`}
+            onClick={() => setView("settings")}
+          >
+            <Settings size={14} />
+            <span>Settings & Rules</span>
+          </button>
         </div>
       </div>
 
+      {/* Main Workspace Frame */}
       <div className={styles.mainContent}>
-        {view === "chat" ? (
-          <ChatWindow threadId={threadId} activeUserId={activeUserId} />
-        ) : (
+        {view === "chat" && (
+          <ChatWindow threadId={threadId} activeUserId={activeUserId} activeUsername={activeUsername} />
+        )}
+        {view === "knowledge" && (
+          <KnowledgePanel activeUserId={activeUserId} />
+        )}
+        {view === "settings" && (
           <SettingsPanel
             activeUserId={activeUserId}
             userRole={userRole}
             onClose={() => setView("chat")}
             onThemeChanged={handleThemeChange}
           />
+        )}
+        {view === "analytics" && (
+          <div className={styles.placeholderWorkspace}>
+            <BarChart2 size={36} className={styles.placeholderIcon} />
+            <h3 className={styles.placeholderTitle}>Database Analytics Workspace</h3>
+            <p className={styles.placeholderDesc}>
+              Connect SQL relational databases (AlloyDB, PostgreSQL, BigQuery) to query databases directly, view properties graphs, compile schemas, and render analytical reports.
+            </p>
+            <div className={styles.placeholderActionBadge}>
+              <Play size={12} />
+              <span>Phase 3 Target (Locked)</span>
+            </div>
+            <button className={styles.placeholderBtn} onClick={() => setView("chat")}>Return to Conversations</button>
+          </div>
+        )}
+        {view === "automations" && (
+          <div className={styles.placeholderWorkspace}>
+            <BrainCircuit size={36} className={styles.placeholderIcon} />
+            <h3 className={styles.placeholderTitle}>Agents & Workflow Automation</h3>
+            <p className={styles.placeholderDesc}>
+              Build cron-scheduled tasks, establish webhook workflows, connect local model endpoints, and register remote Model Context Protocol (MCP) servers.
+            </p>
+            <div className={styles.placeholderActionBadge} style={{ color: "var(--accent-secondary)", borderColor: "rgba(6, 182, 212, 0.2)" }}>
+              <Play size={12} />
+              <span>Phase 4 Target (Locked)</span>
+            </div>
+            <button className={styles.placeholderBtn} onClick={() => setView("chat")}>Return to Conversations</button>
+          </div>
         )}
       </div>
     </main>

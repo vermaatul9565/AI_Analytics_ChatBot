@@ -79,7 +79,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-secondary);
+  background: var(--bg-panel);
   padding: 0.4rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
 }
@@ -111,7 +111,7 @@
 
 .copyButton:hover {
   color: var(--text-primary);
-  background: var(--bg-tertiary);
+  background: var(--bg-surface);
 }
 
 /* ─── Lists ─── */
@@ -142,7 +142,7 @@
   margin: 0.75rem 0;
   padding: 0.5rem 1rem;
   border-left: 3px solid var(--accent-secondary, #06b6d4);
-  background: var(--bg-tertiary);
+  background: var(--bg-surface);
   border-radius: 0 6px 6px 0;
   color: var(--text-secondary);
   font-style: italic;

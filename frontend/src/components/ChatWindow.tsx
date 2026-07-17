@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, MessageSquare, Mic, MicOff, Paperclip, Plus, Image as ImageIcon, Video, Music, FileText } from "lucide-react";
+import { 
+  Send, Sparkles, MessageSquare, Mic, MicOff, Paperclip, 
+  Plus, Image as ImageIcon, Video, Music, FileText, 
+  ChevronDown, ChevronUp, Cpu, Layers, Activity, Calendar, Search
+} from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import styles from "./ChatWindow.module.css";
 
@@ -28,6 +32,7 @@ interface Message {
 interface ChatWindowProps {
   threadId: string;
   activeUserId: string;
+  activeUsername: string;
 }
 
 const UNIFIED_MODELS = [
@@ -52,7 +57,7 @@ const UNIFIED_MODELS = [
   { id: "ollama-gemma4-e4b", name: "Gemma 4 (Local)", provider: "ollama" }
 ];
 
-export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) {
+export default function ChatWindow({ threadId, activeUserId, activeUsername }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -78,6 +83,9 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
   const [attachedFile, setAttachedFile] = useState<{ filename: string; content: string } | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
 
+  // Accordion state for collapsed intermediate thoughts
+  const [expandedThoughts, setExpandedThoughts] = useState<Record<string, boolean>>({});
+
   // Buffer for smooth streaming
   const streamBufferRef = useRef<string>("");
   const isTypingRef = useRef<boolean>(false);
@@ -85,7 +93,6 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
 
   const processStreamBuffer = () => {
     if (streamBufferRef.current.length > 0 && activeMessageIdRef.current) {
-      // Elastic smoothing: take more chars if buffer is large, otherwise 1
       const charsToTake = Math.max(1, Math.floor(streamBufferRef.current.length / 8));
       const chunk = streamBufferRef.current.substring(0, charsToTake);
       streamBufferRef.current = streamBufferRef.current.substring(charsToTake);
@@ -161,6 +168,21 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     fetchHistory();
   }, [threadId]);
 
+  const toggleThought = (msgId: string) => {
+    setExpandedThoughts(prev => ({
+      ...prev,
+      [msgId]: !prev[msgId]
+    }));
+  };
+
+  const getGreeting = () => {
+    const hr = new Date().getHours();
+    const name = activeUsername || "Atul";
+    if (hr < 12) return `Good morning, ${name}`;
+    if (hr < 17) return `Good afternoon, ${name}`;
+    return `Good evening, ${name}`;
+  };
+
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || isStreaming) return;
 
@@ -178,7 +200,6 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     
     setMessages((prev) => [...prev, userMessage]);
     
-    // Capture attachment for API payload then clear it from UI
     const currentAttachment = attachedFile;
     setAttachedFile(null);
     setInput("");
@@ -187,7 +208,6 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     }
     setIsStreaming(true);
 
-    // Append placeholder for assistant response
     setMessages((prev) => [
       ...prev,
       { id: assistantMsgId, role: "assistant", content: "" },
@@ -231,7 +251,7 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
 
         buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
-        buffer = parts.pop() || ""; // retain last partial block
+        buffer = parts.pop() || "";
 
         for (const part of parts) {
           if (part.startsWith("data: ")) {
@@ -358,6 +378,50 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     }
   };
 
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleTranscribe = async (audioBlob: Blob) => {
+    setIsStreaming(true);
+    setInput("Transcribing voice...");
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", audioBlob, "recording.webm");
+      
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiBaseUrl}/api/transcribe`, {
+        method: "POST",
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server returned status code ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const transcribedText = data.text || "";
+      
+      if (transcribedText.trim()) {
+        setInput("");
+        await sendMessage(transcribedText);
+      } else {
+        setInput("");
+        alert("Could not transcribe any speech. Please try speaking closer to the microphone.");
+      }
+    } catch (err: any) {
+      console.error("Transcription error:", err);
+      setInput("");
+      alert(`Transcription failed: ${err.message}`);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -398,50 +462,6 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
     }
   };
 
-  const handleStopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const handleTranscribe = async (audioBlob: Blob) => {
-    setIsStreaming(true);
-    setInput("Transcribing voice...");
-    
-    try {
-      const formData = new FormData();
-      formData.append("file", audioBlob, "recording.webm");
-      
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiBaseUrl}/api/transcribe`, {
-        method: "POST",
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Server returned status code ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const transcribedText = data.text || "";
-      
-      if (transcribedText.trim()) {
-        setInput(""); // clear transcribing placeholder
-        await sendMessage(transcribedText);
-      } else {
-        setInput("");
-        alert("Could not transcribe any speech. Please try speaking closer to the microphone.");
-      }
-    } catch (err: any) {
-      console.error("Transcription error:", err);
-      setInput("");
-      alert(`Transcription failed: ${err.message}`);
-    } finally {
-      setIsStreaming(false);
-    }
-  };
-
   const renderUserMessage = (content: string) => {
     const detailsRegex = /<details>[\s\S]*?<summary>(.*?)<\/summary>[\s\S]*?<\/details>\s*/i;
     const match = content.match(detailsRegex);
@@ -460,272 +480,330 @@ export default function ChatWindow({ threadId, activeUserId }: ChatWindowProps) 
       
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            backgroundColor: 'rgba(255,255,255,0.2)', 
-            padding: '6px 12px', 
-            borderRadius: '16px', 
-            fontSize: '0.85rem',
-            width: 'fit-content'
-          }}>
-            <FileIcon size={14} />
-            <span style={{ fontWeight: 500 }}>{filename || 'Attached File'}</span>
+          <div className={styles.attachedFileBadge}>
+            <FileIcon size={12} />
+            <span>{filename || 'Attached File'}</span>
           </div>
-          <div>{textContent}</div>
+          <div className={styles.userTextContent}>{textContent}</div>
         </div>
       );
     }
-    return content;
+    return <div className={styles.userTextContent}>{content}</div>;
   };
 
   return (
     <div className={styles.window}>
+      {/* Redesigned Minimalist Top Bar */}
       <header className={styles.header}>
         <div className={styles.titleArea}>
-          <h2 className={styles.title}>SAGE</h2>
-          <span className={styles.subtitle}>Session: {threadId || "Initializing..."}</span>
+          <h2 className={styles.title}>SAGE Chat Workspace</h2>
+          <span className={styles.subtitle}>Active Session ID: {threadId || "Initializing..."}</span>
         </div>
         <div className={styles.badge}>
           <div className={styles.badgeDot}></div>
-          <span>LangGraph Engine</span>
+          <span>LangGraph Engine Grounded</span>
         </div>
       </header>
 
+      {/* Dynamic Main Layout */}
       <div className={`${styles.mainLayout} ${messages.length === 0 ? styles.layoutEmpty : styles.layoutActive}`}>
-        <div className={styles.messagesArea}>
-          {messages.length === 0 ? (
-            <div className={styles.emptyState}>
-              <Sparkles className={styles.emptyIcon} size={48} style={{ color: "var(--accent-secondary)", opacity: 0.8 }} />
-              <h3 className={styles.emptyTitle}>Welcome to SAGE</h3>
-              <p className={styles.emptyDesc}>
-                Smart Analytics & Generative Engine
-              </p>
-              <p className={styles.emptyDescSecondary}>
-                Your AI workspace for analytics, knowledge, reasoning, and intelligent assistance.
-              </p>
-            
-            <div className={styles.suggestionsGrid}>
-              <div className={styles.suggestionCard} onClick={() => setInput("What are the latest breakthroughs in AI agents?")}>
-                <span className={styles.suggestionEmoji}>🔍</span>
-                <div className={styles.suggestionContent}>
-                  <div className={styles.suggestionTitle}>Web Search</div>
-                  <div className={styles.suggestionText}>Look up real-time news and web information</div>
+        
+        {/* Messages and Empty State */}
+        <div className={styles.messagesContainer}>
+          <div className={styles.messagesArea}>
+            {messages.length === 0 ? (
+              <div className={styles.dashboardContainer}>
+                
+                {/* 1. Welcoming Personal Header */}
+                <div className={styles.dashboardHeader}>
+                  <Sparkles className={styles.dashboardSparkleIcon} size={28} />
+                  <h2 className={styles.dashboardGreeting}>{getGreeting()}</h2>
+                  <p className={styles.dashboardSubtitle}>How can SAGE assist your analytical workflow today?</p>
                 </div>
-              </div>
-              <div className={styles.suggestionCard} onClick={() => setInput("What date and time is it today?")}>
-                <span className={styles.suggestionEmoji}>📅</span>
-                <div className={styles.suggestionContent}>
-                  <div className={styles.suggestionTitle}>System Time</div>
-                  <div className={styles.suggestionText}>Test dynamic time injection and context</div>
-                </div>
-              </div>
-              <div className={styles.suggestionCard} onClick={() => setInput("How does vector retrieval ground AI answers?")}>
-                <span className={styles.suggestionEmoji}>📚</span>
-                <div className={styles.suggestionContent}>
-                  <div className={styles.suggestionTitle}>Vector Database</div>
-                  <div className={styles.suggestionText}>Preview Phase 2 knowledge grounding</div>
-                </div>
-              </div>
-              <div className={styles.suggestionCard} onClick={() => setInput("How will Generative UI help analyze metrics?")}>
-                <span className={styles.suggestionEmoji}>📊</span>
-                <div className={styles.suggestionContent}>
-                  <div className={styles.suggestionTitle}>Database Analytics</div>
-                  <div className={styles.suggestionText}>Preview Phase 3 interactive visuals</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`${styles.messageRow} ${
-                msg.role === "user" ? styles.messageRowUser : styles.messageRowAssistant
-              }`}
-            >
-              <div
-                className={`${styles.bubble} ${
-                  msg.role === "user" ? styles.bubbleUser : styles.bubbleAssistant
-                }`}
-              >
-                {msg.role === "user" ? (
-                  renderUserMessage(msg.content)
-                ) : (
-                  <div className={styles.assistantContainer}>
-                    {/* Routing Badge */}
-                    {msg.routing && (
-                      <div className={styles.routingBadge}>
-                        <Sparkles size={10} className={styles.routingIcon} />
-                        <span>Routed to <strong>{msg.routing.routed_model}</strong></span>
-                        <span className={styles.routingDetail}>
-                          &nbsp;({msg.routing.intent} • {msg.routing.complexity})
-                        </span>
-                      </div>
-                    )}
 
-                    {/* Plan Block */}
-                    {msg.plan && (
-                      <div className={styles.planBlock}>
-                        <div className={styles.blockHeader}>📋 Execution Plan</div>
-                        <pre className={styles.blockContent}>{msg.plan}</pre>
-                      </div>
-                    )}
+                {/* 2. Three-column SAGE Engine Status Grid */}
+                <div className={styles.engineStatusGrid}>
+                  <div className={styles.statusCard}>
+                    <Cpu size={16} className={styles.statusIcon} style={{ color: "#3b82f6" }} />
+                    <div className={styles.statusText}>
+                      <span className={styles.statusTitle}>Auto Routing</span>
+                      <span className={styles.statusDesc}>Task intent & complexity analysis.</span>
+                    </div>
+                  </div>
+                  <div className={styles.statusCard}>
+                    <Layers size={16} className={styles.statusIcon} style={{ color: "#06b6d4" }} />
+                    <div className={styles.statusText}>
+                      <span className={styles.statusTitle}>Cognitive Memory</span>
+                      <span className={styles.statusDesc}>Active facts & preference rules alignment.</span>
+                    </div>
+                  </div>
+                  <div className={styles.statusCard}>
+                    <Activity size={16} className={styles.statusIcon} style={{ color: "#10b981" }} />
+                    <div className={styles.statusText}>
+                      <span className={styles.statusTitle}>Integrations</span>
+                      <span className={styles.statusDesc}>Connected catalog & filesystem schemas.</span>
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Thinking/Reasoning Block */}
-                    {msg.reasoning && (
-                      <div className={styles.reasoningBlock}>
-                        <div className={styles.blockHeader}>🧠 Thinking Process</div>
-                        <pre className={styles.blockContent}>{msg.reasoning}</pre>
-                      </div>
-                    )}
+                {/* 3. Refined Suggestion Tiles */}
+                <div className={styles.suggestionsGrid}>
+                  <div className={styles.suggestionTile} onClick={() => setInput("Search for recent advancements in AI agents")}>
+                    <Search size={14} className={styles.tileIcon} />
+                    <div className={styles.tileContent}>
+                      <span className={styles.tileTitle}>Web Search Ingestion</span>
+                      <span className={styles.tileText}>Consult internet indices for updated insights.</span>
+                    </div>
+                  </div>
 
-                    {/* Main Content */}
-                    {msg.content === "" && !msg.plan && !msg.reasoning && !msg.routing ? (
-                      <div className={styles.typingIndicator}>
-                        <div className={styles.dot}></div>
-                        <div className={styles.dot}></div>
-                        <div className={styles.dot}></div>
-                      </div>
+                  <div className={styles.suggestionTile} onClick={() => setInput("What date and time is it right now?")}>
+                    <Calendar size={14} className={styles.tileIcon} />
+                    <div className={styles.tileContent}>
+                      <span className={styles.tileTitle}>Test Context Ingestion</span>
+                      <span className={styles.tileText}>Verify dynamic system date/time variables injection.</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.suggestionTile} onClick={() => setInput("What rules do you have in your behavioral memory about me?")}>
+                    <Layers size={14} className={styles.tileIcon} />
+                    <div className={styles.tileContent}>
+                      <span className={styles.tileTitle}>Inspect Learned Preferences</span>
+                      <span className={styles.tileText}>Query SAGE's behavioral rules memory buffer.</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.suggestionTile} onClick={() => setInput("Analyze the database analytics mock capabilities")}>
+                    <FileText size={14} className={styles.tileIcon} />
+                    <div className={styles.tileContent}>
+                      <span className={styles.tileTitle}>Database Analysis Preview</span>
+                      <span className={styles.tileText}>Review structured querying capabilities.</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`${styles.messageRow} ${
+                    msg.role === "user" ? styles.messageRowUser : styles.messageRowAssistant
+                  }`}
+                >
+                  <div
+                    className={`${styles.bubble} ${
+                      msg.role === "user" ? styles.bubbleUser : styles.bubbleAssistant
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      renderUserMessage(msg.content)
                     ) : (
-                      <div className={styles.mainContent}>
-                        <MarkdownRenderer content={msg.content} />
-                      </div>
-                    )}
+                      <div className={styles.assistantContainer}>
+                        
+                        {/* Accordion Collapsible Process Steps */}
+                        {(msg.plan || msg.reasoning || msg.routing || msg.metrics) && (
+                          <div className={styles.thoughtAccordion}>
+                            <button 
+                              type="button" 
+                              onClick={() => toggleThought(msg.id)} 
+                              className={styles.thoughtAccordionTrigger}
+                            >
+                              <div className={styles.thoughtAccordionSummary}>
+                                <Sparkles size={11} className={styles.thoughtSparkle} />
+                                <span>
+                                  {msg.routing ? `Grounded via ${msg.routing.routed_model}` : "Cognitive Execution process"}
+                                </span>
+                                {msg.metrics && (
+                                  <span className={styles.thoughtDurationLabel}>
+                                    • {msg.metrics.latency.toFixed(2)}s
+                                  </span>
+                                )}
+                              </div>
+                              {expandedThoughts[msg.id] ? (
+                                <ChevronUp size={14} className={styles.thoughtChevron} />
+                              ) : (
+                                <ChevronDown size={14} className={styles.thoughtChevron} />
+                              )}
+                            </button>
 
-                    {/* Metrics Footer */}
-                    {msg.metrics && (
-                      <div className={styles.metricsFooter}>
-                        <span>⚡ {msg.metrics.latency}s</span>
-                        <span className={styles.metricsSeparator}>•</span>
-                        <span>📝 {msg.metrics.tokens} tokens</span>
-                        <span className={styles.metricsSeparator}>•</span>
-                        <span>🪙 ${msg.metrics.cost.toFixed(5)}</span>
+                            {expandedThoughts[msg.id] && (
+                              <div className={styles.thoughtAccordionContent}>
+                                {msg.routing && (
+                                  <div className={styles.thoughtSubSection}>
+                                    <span className={styles.subSectionTitle}>Routing Analytics</span>
+                                    <div className={styles.routingDetailsGrid}>
+                                      <span><strong>Intent category:</strong> {msg.routing.intent}</span>
+                                      <span><strong>Request complexity:</strong> {msg.routing.complexity}</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {msg.plan && (
+                                  <div className={styles.thoughtSubSection}>
+                                    <span className={styles.subSectionTitle}>Execution Plan</span>
+                                    <pre className={styles.rawThoughtBlock}>{msg.plan}</pre>
+                                  </div>
+                                )}
+
+                                {msg.reasoning && (
+                                  <div className={styles.thoughtSubSection}>
+                                    <span className={styles.subSectionTitle}>Thinking Process</span>
+                                    <pre className={styles.rawThoughtBlock}>{msg.reasoning}</pre>
+                                  </div>
+                                )}
+
+                                {msg.metrics && (
+                                  <div className={styles.thoughtSubSection} style={{ border: "none", paddingBottom: 0 }}>
+                                    <span className={styles.subSectionTitle}>Resource Cost Analysis</span>
+                                    <div className={styles.routingDetailsGrid}>
+                                      <span>Latency: {msg.metrics.latency}s</span>
+                                      <span>Tokens generated: {msg.metrics.tokens}</span>
+                                      <span>Execution cost: ${msg.metrics.cost.toFixed(6)}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Main Response text */}
+                        {msg.content === "" && !msg.plan && !msg.reasoning && !msg.routing ? (
+                          <div className={styles.typingIndicator}>
+                            <div className={styles.dot}></div>
+                            <div className={styles.dot}></div>
+                            <div className={styles.dot}></div>
+                          </div>
+                        ) : (
+                          <div className={styles.assistantTextBody}>
+                            <MarkdownRenderer content={msg.content} />
+                          </div>
+                        )}
+
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className={styles.composerContainer}>
-        {attachedFile && !isUploadingFile && (() => {
-          let FileIcon = Paperclip;
-          const lowerFile = attachedFile.filename.toLowerCase();
-          if (lowerFile.endsWith('.png') || lowerFile.endsWith('.jpg') || lowerFile.endsWith('.jpeg') || lowerFile.endsWith('.webp')) FileIcon = ImageIcon;
-          else if (lowerFile.endsWith('.mp4') || lowerFile.endsWith('.webm') || lowerFile.endsWith('.mov')) FileIcon = Video;
-          else if (lowerFile.endsWith('.mp3') || lowerFile.endsWith('.wav') || lowerFile.endsWith('.ogg')) FileIcon = Music;
-          else if (lowerFile.endsWith('.pdf')) FileIcon = FileText;
-          return (
-            <div className={styles.attachmentBadge}>
-              <FileIcon size={14} /> {attachedFile.filename}
-              <button type="button" onClick={() => setAttachedFile(null)} className={styles.attachmentRemove}>✕</button>
-            </div>
-          );
-        })()}
-        {isUploadingFile && (
-          <div className={styles.attachmentBadge}>
-            ⏳ Uploading & Extracting...
-          </div>
-        )}
-
-        {isRecording && (
-          <div className={styles.waveOverlay}>
-            <div className={styles.waveBar}></div>
-            <div className={styles.waveBar}></div>
-            <div className={styles.waveBar}></div>
-            <div className={styles.waveBar}></div>
-            <div className={styles.waveBar}></div>
-            <span className={styles.waveText}>Recording...</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className={`${styles.inputArea} ${isFocused ? styles.inputAreaFocused : ""}`}>
-        <textarea
-          ref={textareaRef}
-          className={styles.input}
-          placeholder={threadId ? "Ask me anything..." : "Initializing session..."}
-          value={input}
-          rows={1}
-          onChange={(e) => {
-            setInput(e.target.value);
-            e.target.style.height = 'auto';
-            e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              if (input.trim() && !isStreaming && threadId) {
-                handleSubmit(e as unknown as React.FormEvent);
-              }
-            }
-          }}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          disabled={isStreaming || !threadId}
-        />
-        
-        <div className={styles.inputActionsRow}>
-          <div className={styles.leftActions}>
-            <input 
-              type="file" 
-              accept="application/pdf,image/*,video/*,audio/*" 
-              ref={fileInputRef} 
-              style={{ display: "none" }} 
-              onChange={handleFileUpload} 
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={styles.actionButton}
-              disabled={isStreaming || !threadId || isUploadingFile}
-              title="Attach Document, Image, Video, or Audio"
-            >
-              <Plus size={20} />
-            </button>
-            <div className={styles.inputModelSelectWrapper}>
-              <select
-                className={styles.inputModelSelect}
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={isStreaming || !threadId}
-              >
-                {UNIFIED_MODELS.map(m => {
-                  const isConfigured = m.provider === "auto" || providerAvailability[m.provider] !== false;
-                  const displayName = isConfigured ? m.name : `${m.name} (API key not configured)`;
-                  return (
-                    <option key={m.id} value={m.id} disabled={!isConfigured}>
-                      {displayName}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          </div>
-          
-          <div className={styles.rightActions}>
-            <button
-              type="button"
-              onClick={isRecording ? handleStopRecording : handleStartRecording}
-              className={`${styles.actionButton} ${isRecording ? styles.micButtonRecording : ""}`}
-              disabled={isStreaming || !threadId}
-              title={isRecording ? "Stop recording and transcribe" : "Record voice input"}
-            >
-              {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
-            <button type="submit" className={styles.sendButton} disabled={!input.trim() || isStreaming || !threadId}>
-              <Send size={16} />
-            </button>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
           </div>
         </div>
-      </form>
+
+        {/* Floating Composer Capsule */}
+        <div className={styles.composerContainer}>
+          {attachedFile && !isUploadingFile && (
+            <div className={styles.attachmentBadge}>
+              <Paperclip size={11} /> 
+              <span className={styles.attachmentText}>{attachedFile.filename}</span>
+              <button type="button" onClick={() => setAttachedFile(null)} className={styles.attachmentRemove}>✕</button>
+            </div>
+          )}
+          {isUploadingFile && (
+            <div className={styles.attachmentBadge}>
+              <div className={styles.badgeMiniSpinner}></div>
+              <span className={styles.attachmentText}>Processing document context...</span>
+            </div>
+          )}
+
+          {isRecording && (
+            <div className={styles.waveOverlay}>
+              <div className={styles.waveBar}></div>
+              <div className={styles.waveBar}></div>
+              <div className={styles.waveBar}></div>
+              <div className={styles.waveBar}></div>
+              <div className={styles.waveBar}></div>
+              <span className={styles.waveText}>Recording audio...</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className={`${styles.inputCapsule} ${isFocused ? styles.inputCapsuleFocused : ""}`}>
+            <textarea
+              ref={textareaRef}
+              className={styles.inputArea}
+              placeholder={threadId ? "Ask SAGE a question or request a database analysis..." : "Initializing workspace session..."}
+              value={input}
+              rows={1}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (input.trim() && !isStreaming && threadId) {
+                    handleSubmit(e as unknown as React.FormEvent);
+                  }
+                }
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              disabled={isStreaming || !threadId}
+            />
+            
+            {/* Integrated Controls Row */}
+            <div className={styles.capsuleActionsRow}>
+              <div className={styles.leftActions}>
+                <input 
+                  type="file" 
+                  accept="application/pdf,image/*,video/*,audio/*" 
+                  ref={fileInputRef} 
+                  style={{ display: "none" }} 
+                  onChange={handleFileUpload} 
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={styles.capsuleBtn}
+                  disabled={isStreaming || !threadId || isUploadingFile}
+                  title="Attach filesystem contexts"
+                >
+                  <Plus size={16} />
+                </button>
+                <div className={styles.modelSelectWrapper}>
+                  <select
+                    className={styles.modelSelector}
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    disabled={isStreaming || !threadId}
+                  >
+                    {UNIFIED_MODELS.map(m => {
+                      const isConfigured = m.provider === "auto" || providerAvailability[m.provider] !== false;
+                      const displayName = isConfigured ? m.name : `${m.name} (Key missing)`;
+                      return (
+                        <option key={m.id} value={m.id} disabled={!isConfigured}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+              
+              <div className={styles.rightActions}>
+                <button
+                  type="button"
+                  onClick={isRecording ? handleStopRecording : handleStartRecording}
+                  className={`${styles.capsuleBtn} ${isRecording ? styles.micActive : ""}`}
+                  disabled={isStreaming || !threadId}
+                  title={isRecording ? "Stop and transcribe voice" : "Dictate query"}
+                >
+                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.sendButton} 
+                  disabled={!input.trim() || isStreaming || !threadId}
+                >
+                  <Send size={12} />
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
       </div>
     </div>
-  </div>
   );
 }

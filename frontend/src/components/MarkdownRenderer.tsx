@@ -114,7 +114,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                     borderRadius: "0 0 8px 8px",
                     padding: "1rem",
                     fontSize: "0.85rem",
-                    background: "var(--bg-tertiary)",
+                    background: "var(--bg-surface)",
                   }}
                   codeTagProps={{
                     style: {

@@ -3,25 +3,27 @@
   width: 100vw;
   height: 100vh;
   position: relative;
-  z-index: 1;
+  overflow: hidden;
 }
 
 .sidebar {
-  width: 280px;
+  width: 250px;
   height: 100%;
-  background-color: var(--bg-secondary);
-  backdrop-filter: blur(16px);
+  background-color: var(--bg-panel);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
+  padding: 1.25rem 0.875rem;
+  flex-shrink: 0;
+  overflow-y: hidden;
 }
 
 .logoArea {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-left: 0.375rem;
 }
 
 .logoIcon {
@@ -29,63 +31,193 @@
 }
 
 .logoText {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
   background: var(--accent-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+}
+
+.userProfileArea {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.25rem;
+}
+
+.avatarMini {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activeUserLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebarHeader {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  padding-left: 0.375rem;
+}
+
+.workspaceSection {
+  margin-bottom: 1.25rem;
+}
+
+.workspaceList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.workspaceLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.workspaceLink:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.workspaceLinkActive {
+  background: var(--bg-surface) !important;
+  color: var(--accent-primary) !important;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-color);
+  margin-bottom: 1.25rem;
+}
+
+.chatHistoryControl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .newChatButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  background: var(--bg-tertiary);
+  gap: 0.375rem;
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  padding: 0.75rem;
-  border-radius: 8px;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-family: inherit;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   transition: all 0.2s ease;
-  margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .newChatButton:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.historySearchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.5rem;
+  color: var(--text-muted);
+}
+
+.historySearchInput {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem 0.375rem 1.625rem;
+  border-radius: var(--radius-sm);
+  outline: none;
+  width: 100%;
+}
+
+.historySearchInput:focus {
+  border-color: var(--text-muted);
 }
 
 .historySection {
   flex: 1;
   overflow-y: auto;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding-right: 2px;
 }
 
-.historyTitle {
-  font-size: 0.75rem;
-  text-transform: uppercase;
+.historyGroup {
+  margin-bottom: 1rem;
+}
+
+.historyGroupTitle {
+  font-size: 0.6875rem;
   color: var(--text-muted);
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
   font-weight: 600;
+  margin-bottom: 0.375rem;
+  padding-left: 0.375rem;
 }
 
 .threadList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .threadItem {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
+  gap: 0.625rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-secondary);
@@ -93,25 +225,30 @@
 }
 
 .threadItem:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--border-color);
 }
 
 .threadItemActive {
-  background: rgba(59, 130, 246, 0.08) !important;
+  background: var(--bg-surface) !important;
   color: var(--text-primary) !important;
-  border-color: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid var(--border-color) !important;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
+  gap: 0.625rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
+.threadIcon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .threadText {
-  font-size: 0.875rem;
+  font-size: 0.78125rem;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -119,23 +256,26 @@
 }
 
 .editInput {
-  font-size: 0.875rem;
+  font-size: 0.78125rem;
   font-family: inherit;
   flex: 1;
   background: var(--bg-primary);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--accent-primary);
   border-radius: 4px;
-  padding: 0.2rem 0.4rem;
+  padding: 1px 4px;
   outline: none;
 }
-.editInput:focus {
-  border-color: var(--accent-primary);
+
+.activeDot {
+  color: var(--accent-secondary);
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .threadActions {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.125rem;
   opacity: 0;
   transition: opacity 0.2s ease;
   margin-left: auto;
@@ -149,9 +289,9 @@
 .actionButton {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.125rem;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -160,29 +300,51 @@
 }
 
 .actionButton:hover {
+  color: var(--text-primary);
+}
+
+.noHistoryText {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  display: block;
+  padding: 1rem 0;
+  font-style: italic;
+}
+
+.sidebarFooter {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+}
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.settingsButton:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.footerItem {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  transition: color 0.2s ease;
-}
-
-.footerItemActive {
-  color: var(--text-secondary);
+.settingsButtonActive {
+  background: var(--bg-surface) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  font-weight: 600;
 }
 
 .mainContent {
@@ -190,119 +352,73 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(circle at top right, rgba(15, 18, 28, 0.3) 0%, transparent 70%);
+  position: relative;
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.03) 0%, transparent 60%);
 }
 
-.themeSection {
-  margin-bottom: 1.5rem;
+/* Placeholder dashboard styling */
+.placeholderWorkspace {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-}
-
-.themeTitle {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.themeButtons {
-  display: flex;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.themeButton {
-  flex: 1;
-  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.375rem;
-  border: 1px solid transparent;
-  background: transparent;
+  text-align: center;
+  padding: 3rem 2rem;
+  height: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.placeholderIcon {
   color: var(--text-muted);
-  padding: 0.5rem 0.25rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  opacity: 0.4;
+  margin-bottom: 1.5rem;
 }
 
-.themeButton:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.themeButtonActive {
-  background: rgba(59, 130, 246, 0.12) !important;
-  color: var(--accent-secondary) !important;
-  border-color: rgba(59, 130, 246, 0.2) !important;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.05) !important;
-}
-
-.userProfileArea {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  margin-bottom: 1rem;
-}
-
-.activeUserLabel {
-  font-size: 0.875rem;
+.placeholderTitle {
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 0.75rem;
 }
 
-.noHistoryText {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 1rem 0;
-  font-style: italic;
+.placeholderDesc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
 }
 
-.settingsButton {
-  display: flex;
+.placeholderActionBadge {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid transparent;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+.placeholderBtn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 1.5rem;
-  width: 100%;
-  text-align: left;
 }
 
-.settingsButton:hover {
-  background: rgba(255, 255, 255, 0.03);
+.placeholderBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
   color: var(--text-primary);
-  border-color: var(--border-color);
 }
-
-.settingsButtonActive {
-  background: rgba(6, 182, 212, 0.08) !important;
-  color: var(--accent-secondary) !important;
-  border-color: rgba(6, 182, 212, 0.2) !important;
-}
-

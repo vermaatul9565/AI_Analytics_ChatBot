@@ -3,13 +3,13 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-inter), sans-serif;
 }
 
 .loginBox {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-panel);
   padding: 2.5rem;
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -50,7 +50,7 @@
   padding: 0.75rem 1rem;
   border-radius: 6px;
   border: 1px solid var(--border-color);
-  background-color: var(--bg-primary);
+  background-color: var(--bg-app);
   color: var(--text-primary);
   font-size: 1rem;
   outline: none;
