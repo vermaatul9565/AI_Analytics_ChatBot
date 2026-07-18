@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks
@@ -93,8 +94,11 @@ def save_chat_and_extract_memory(user_id: str | None, thread_id: str, user_messa
         # Check if thread exists, create if not
         thread = db.query(ChatThread).filter(ChatThread.id == thread_id).first()
         if not thread:
-            # Generate simple title
-            title = user_message[:30] + "..." if len(user_message) > 30 else user_message
+            # Generate clean simple title
+            clean_msg = re.sub(r'<details>[\s\S]*?</details>', '', user_message).strip()
+            if not clean_msg:
+                clean_msg = "Attached Document Chat"
+            title = clean_msg[:35] + "..." if len(clean_msg) > 35 else clean_msg
             thread = ChatThread(id=thread_id, user_id=user_id, title=title)
             db.add(thread)
             db.commit()

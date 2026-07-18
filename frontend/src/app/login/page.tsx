@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import SageLogo from "@/components/SageLogo";
 
 import styles from "./login.module.css";
 
@@ -82,11 +83,7 @@ export default function LoginPage() {
     <div className={styles.container}>
       <div className={styles.loginBox}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.25rem' }}>
-          <img 
-            src="/sage-custom-logo-full.png" 
-            alt="SAGE — Smart Analytics & Generative Engine" 
-            style={{ width: "100%", maxWidth: "340px", height: "auto", filter: "drop-shadow(0 0 16px rgba(6, 182, 212, 0.2))" }} 
-          />
+          <SageLogo variant="large" />
         </div>
         
         <form onSubmit={handleLogin}>

@@ -11,6 +11,7 @@ import {
   Search, BookOpen, Clock, Play
 } from "lucide-react";
 import styles from "./page.module.css";
+import SageLogo from "@/components/SageLogo";
 
 interface ChatThread {
   id: string;
@@ -70,9 +71,14 @@ export default function Home() {
       const res = await fetch(`${apiBaseUrl}/api/users/${userId}/threads`);
       if (res.ok) {
         const data = await res.json();
+        const cleanTitle = (rawTitle: string) => {
+          if (!rawTitle) return "Untitled Chat";
+          const cleaned = rawTitle.replace(/<details>[\s\S]*?<\/details>/gi, '').replace(/<summary>[\s\S]*?<\/summary>/gi, '').trim();
+          return cleaned || "Attached Document";
+        };
         const formattedThreads = data.map((t: any) => ({
           id: t.id,
-          label: t.title || "Untitled Chat",
+          label: cleanTitle(t.title),
           createdAt: t.created_at ? new Date(t.created_at) : new Date()
         }));
         setThreads(formattedThreads);
@@ -239,13 +245,7 @@ export default function Home() {
       <div className={styles.sidebar}>
         {/* Logo area */}
         <div className={styles.logoArea}>
-          <img 
-            src="/sage-custom-logo-icon.png" 
-            alt="SAGE Logo" 
-            className={styles.logoIcon}
-            style={{ width: "24px", height: "24px", objectFit: "contain" }}
-          />
-          <span className={styles.logoText}>SAGE</span>
+          <SageLogo variant="sidebar" />
         </div>
 
 
