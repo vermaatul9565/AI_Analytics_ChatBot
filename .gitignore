@@ -57,3 +57,11 @@ ehthumbs.db
 *.sln
 *.sw?
 **/.gemini
+
+# Python virtual environment (without leading dot)
+venv/
+**/venv/
+
+# Scratch & temporary scripts
+scratch/
+**/scratch/
