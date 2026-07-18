@@ -2,11 +2,12 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { 
-  Send, Sparkles, MessageSquare, Mic, MicOff, Paperclip, 
+  Send, Sparkles, Mic, MicOff, Paperclip, 
   Plus, Image as ImageIcon, Video, Music, FileText, 
-  ChevronDown, ChevronUp, Cpu, Layers, Activity, Calendar, Search
+  ChevronDown, ChevronUp, Activity, Search
 } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
+import SageOrbVisualizer, { OrbState } from "./SageOrbVisualizer";
 import styles from "./ChatWindow.module.css";
 
 interface Message {
@@ -61,6 +62,7 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [orbState, setOrbState] = useState<OrbState>("idle");
   const [isFocused, setIsFocused] = useState(false);
   
   const [selectedModel, setSelectedModel] = useState<string>("auto");
@@ -187,6 +189,7 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
     if (!messageText.trim() || isStreaming) return;
 
     setIsStreaming(true);
+    setOrbState("thinking");
     scrollBehaviorRef.current = "smooth";
     const userMsgId = `msg-${Date.now()}`;
     const assistantMsgId = `msg-${Date.now() + 1}`;
@@ -262,6 +265,7 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
               const data = JSON.parse(jsonStr);
 
               if (data.type === "token") {
+                setOrbState("responding");
                 streamBufferRef.current += data.content;
                 if (!isTypingRef.current) {
                   isTypingRef.current = true;
@@ -335,6 +339,10 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
       );
     } finally {
       setIsStreaming(false);
+      setOrbState("completed");
+      setTimeout(() => {
+        setOrbState((current) => current === "completed" ? "idle" : current);
+      }, 1500);
     }
   };
 
@@ -373,6 +381,7 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
       
       mediaRecorderRef.current.start();
       setIsRecording(true);
+      setOrbState("listening");
     } catch (err) {
       console.error("Failed to start recording:", err);
     }
@@ -382,6 +391,7 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setOrbState("thinking");
     }
   };
 
@@ -411,11 +421,13 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
         await sendMessage(transcribedText);
       } else {
         setInput("");
+        setOrbState("idle");
         alert("Could not transcribe any speech. Please try speaking closer to the microphone.");
       }
     } catch (err: any) {
       console.error("Transcription error:", err);
       setInput("");
+      setOrbState("idle");
       alert(`Transcription failed: ${err.message}`);
     } finally {
       setIsStreaming(false);
@@ -493,18 +505,6 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
 
   return (
     <div className={styles.window}>
-      {/* Redesigned Minimalist Top Bar */}
-      <header className={styles.header}>
-        <div className={styles.titleArea}>
-          <h2 className={styles.title}>SAGE Chat Workspace</h2>
-          <span className={styles.subtitle}>Active Session ID: {threadId || "Initializing..."}</span>
-        </div>
-        <div className={styles.badge}>
-          <div className={styles.badgeDot}></div>
-          <span>LangGraph Engine Grounded</span>
-        </div>
-      </header>
-
       {/* Dynamic Main Layout */}
       <div className={`${styles.mainLayout} ${messages.length === 0 ? styles.layoutEmpty : styles.layoutActive}`}>
         
@@ -516,69 +516,20 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                 
                 {/* 1. Welcoming Personal Header */}
                 <div className={styles.dashboardHeader}>
-                  <Sparkles className={styles.dashboardSparkleIcon} size={28} />
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <img 
+                      src="/sage-custom-logo-full-dark.png" 
+                      alt="SAGE Branding" 
+                      className={`${styles.dashboardFullLogo} ${styles.logoDark}`}
+                    />
+                    <img 
+                      src="/sage-custom-logo-full-light.png" 
+                      alt="SAGE Branding" 
+                      className={`${styles.dashboardFullLogo} ${styles.logoLight}`}
+                    />
+                  </div>
                   <h2 className={styles.dashboardGreeting}>{getGreeting()}</h2>
                   <p className={styles.dashboardSubtitle}>How can SAGE assist your analytical workflow today?</p>
-                </div>
-
-                {/* 2. Three-column SAGE Engine Status Grid */}
-                <div className={styles.engineStatusGrid}>
-                  <div className={styles.statusCard}>
-                    <Cpu size={16} className={styles.statusIcon} style={{ color: "#3b82f6" }} />
-                    <div className={styles.statusText}>
-                      <span className={styles.statusTitle}>Auto Routing</span>
-                      <span className={styles.statusDesc}>Task intent & complexity analysis.</span>
-                    </div>
-                  </div>
-                  <div className={styles.statusCard}>
-                    <Layers size={16} className={styles.statusIcon} style={{ color: "#06b6d4" }} />
-                    <div className={styles.statusText}>
-                      <span className={styles.statusTitle}>Cognitive Memory</span>
-                      <span className={styles.statusDesc}>Active facts & preference rules alignment.</span>
-                    </div>
-                  </div>
-                  <div className={styles.statusCard}>
-                    <Activity size={16} className={styles.statusIcon} style={{ color: "#10b981" }} />
-                    <div className={styles.statusText}>
-                      <span className={styles.statusTitle}>Integrations</span>
-                      <span className={styles.statusDesc}>Connected catalog & filesystem schemas.</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Refined Suggestion Tiles */}
-                <div className={styles.suggestionsGrid}>
-                  <div className={styles.suggestionTile} onClick={() => setInput("Search for recent advancements in AI agents")}>
-                    <Search size={14} className={styles.tileIcon} />
-                    <div className={styles.tileContent}>
-                      <span className={styles.tileTitle}>Web Search Ingestion</span>
-                      <span className={styles.tileText}>Consult internet indices for updated insights.</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.suggestionTile} onClick={() => setInput("What date and time is it right now?")}>
-                    <Calendar size={14} className={styles.tileIcon} />
-                    <div className={styles.tileContent}>
-                      <span className={styles.tileTitle}>Test Context Ingestion</span>
-                      <span className={styles.tileText}>Verify dynamic system date/time variables injection.</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.suggestionTile} onClick={() => setInput("What rules do you have in your behavioral memory about me?")}>
-                    <Layers size={14} className={styles.tileIcon} />
-                    <div className={styles.tileContent}>
-                      <span className={styles.tileTitle}>Inspect Learned Preferences</span>
-                      <span className={styles.tileText}>Query SAGE's behavioral rules memory buffer.</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.suggestionTile} onClick={() => setInput("Analyze the database analytics mock capabilities")}>
-                    <FileText size={14} className={styles.tileIcon} />
-                    <div className={styles.tileContent}>
-                      <span className={styles.tileTitle}>Database Analysis Preview</span>
-                      <span className={styles.tileText}>Review structured querying capabilities.</span>
-                    </div>
-                  </div>
                 </div>
 
               </div>
@@ -599,6 +550,15 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                       renderUserMessage(msg.content)
                     ) : (
                       <div className={styles.assistantContainer}>
+                        {/* SAGE Logo Header */}
+                        <div className={styles.assistantHeader}>
+                          <img 
+                            src="/sage-custom-logo-icon.png" 
+                            alt="SAGE Logo" 
+                            className={styles.assistantAvatar} 
+                          />
+                          <span className={styles.assistantName}>SAGE</span>
+                        </div>
                         
                         {/* Accordion Collapsible Process Steps */}
                         {(msg.plan || msg.reasoning || msg.routing || msg.metrics) && (
@@ -669,10 +629,8 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
 
                         {/* Main Response text */}
                         {msg.content === "" && !msg.plan && !msg.reasoning && !msg.routing ? (
-                          <div className={styles.typingIndicator}>
-                            <div className={styles.dot}></div>
-                            <div className={styles.dot}></div>
-                            <div className={styles.dot}></div>
+                          <div style={{ padding: "0.25rem 0", display: "flex", justifyContent: "flex-start" }}>
+                            <SageOrbVisualizer state="thinking" size={75} showLabel={false} />
                           </div>
                         ) : (
                           <div className={styles.assistantTextBody}>
@@ -707,13 +665,39 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
           )}
 
           {isRecording && (
-            <div className={styles.waveOverlay}>
-              <div className={styles.waveBar}></div>
-              <div className={styles.waveBar}></div>
-              <div className={styles.waveBar}></div>
-              <div className={styles.waveBar}></div>
-              <div className={styles.waveBar}></div>
-              <span className={styles.waveText}>Recording audio...</span>
+            <div className={styles.waveOverlay} style={{ padding: "0.25rem 0.75rem", gap: "0.5rem" }}>
+              <SageOrbVisualizer state="listening" size={32} showLabel={false} />
+              <span className={styles.waveText}>Recording audio... SAGE is listening</span>
+            </div>
+          )}
+
+          {/* Quick Suggestion Chips (when messages exist and we are idle) */}
+          {messages.length > 0 && !isStreaming && !isRecording && (
+            <div className={styles.suggestionChipsContainer}>
+              <button 
+                type="button" 
+                className={styles.suggestionChip}
+                onClick={() => sendMessage("Explain the trend")}
+              >
+                <Sparkles size={11} className={styles.suggestionChipIcon} />
+                <span>Explain the trend</span>
+              </button>
+              <button 
+                type="button" 
+                className={styles.suggestionChip}
+                onClick={() => sendMessage("Compare by region")}
+              >
+                <Search size={11} className={styles.suggestionChipIcon} />
+                <span>Compare by region</span>
+              </button>
+              <button 
+                type="button" 
+                className={styles.suggestionChip}
+                onClick={() => sendMessage("Show YoY comparison")}
+              >
+                <Activity size={11} className={styles.suggestionChipIcon} />
+                <span>Show YoY comparison</span>
+              </button>
             </div>
           )}
 
