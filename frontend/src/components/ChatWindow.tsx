@@ -717,6 +717,15 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                     disabled={isStreaming || !threadId}
+                    style={{
+                      width: (() => {
+                        const currentModelObject = UNIFIED_MODELS.find(m => m.id === selectedModel);
+                        if (!currentModelObject) return "auto";
+                        const isConfigured = currentModelObject.provider === "auto" || providerAvailability[currentModelObject.provider] !== false;
+                        const name = isConfigured ? currentModelObject.name : `${currentModelObject.name} (Key missing)`;
+                        return `${name.length * 6.6 + 8}px`;
+                      })()
+                    }}
                   >
                     {UNIFIED_MODELS.map(m => {
                       const isConfigured = m.provider === "auto" || providerAvailability[m.provider] !== false;
@@ -743,10 +752,10 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                 </button>
                 <button 
                   type="submit" 
-                  className={styles.sendButton} 
+                  className={`${styles.capsuleBtn} ${input.trim() && !isStreaming && threadId ? styles.sendButtonActive : ""}`} 
                   disabled={!input.trim() || isStreaming || !threadId}
                 >
-                  <Send size={12} />
+                  <Send size={16} />
                 </button>
               </div>
             </div>

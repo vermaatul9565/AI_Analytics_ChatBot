@@ -74,6 +74,11 @@
   justify-content: center;
 }
 
+.layoutEmpty .messagesContainer {
+  flex: none;
+  padding-bottom: 0;
+}
+
 .layoutActive {
   justify-content: flex-start;
 }
@@ -549,6 +554,13 @@
   color: var(--text-primary);
 }
 
+.capsuleBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+}
+
 .micActive {
   background: rgba(239, 68, 68, 0.08) !important;
   color: #ef4444 !important;
@@ -596,29 +608,12 @@
   color: var(--text-primary);
 }
 
-.sendButton {
-  background: var(--accent-gradient);
-  border: none;
-  color: #ffffff;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+.sendButtonActive {
+  color: var(--accent-primary) !important;
 }
 
-.sendButton:hover {
-  transform: scale(1.05);
-}
-
-.sendButton:disabled {
-  background: var(--bg-hover);
-  color: var(--text-muted);
-  cursor: not-allowed;
-  transform: none;
+.sendButtonActive:hover {
+  color: var(--accent-secondary) !important;
 }
 
 /* Dashboard / Welcome screen styles */
