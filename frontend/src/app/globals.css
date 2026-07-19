@@ -1,23 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* Dark Mode Default Theme (Sophisticated charcoal / obsidian blue) */
-  --bg-primary: #06070a;
-  --bg-panel: #0c0d14;
-  --bg-surface: #131522;
+  --bg-primary: #131313;
+  --bg-primary-rgb: 19, 19, 19;
+  --bg-panel: #0e0e0e;
+  --bg-surface: #1e1e1e;
   --bg-hover: rgba(255, 255, 255, 0.04);
   --bg-active: rgba(255, 255, 255, 0.07);
-  --bg-glass: rgba(12, 13, 20, 0.7);
+  --bg-glass: rgba(19, 19, 19, 0.7);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #e3e3e3;
+  --text-secondary: #aaaaaa;
+  --text-muted: #767676;
   
   --accent-primary: #3b82f6;
   --accent-secondary: #06b6d4;
   --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
   
-  --border-color: rgba(255, 255, 255, 0.06);
+  --border-color: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.12);
   --border-glow: rgba(59, 130, 246, 0.15);
   
@@ -26,38 +27,49 @@
   --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.12);
   
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-xl: 24px;
+  
+  /* Inline Code Variables (Dark Theme red/coral highlights) */
+  --code-text: #f28b82;
+  --code-bg: rgba(242, 139, 130, 0.12);
+  --code-border: rgba(242, 139, 130, 0.2);
 }
 
 [data-theme="light"] {
   /* Light Mode Theme (Layered slate and white) */
-  --bg-primary: #f8fafc;
-  --bg-panel: #f1f5f9;
+  --bg-primary: #f3f3f3;
+  --bg-primary-rgb: 243, 243, 243;
+  --bg-panel: #eeeeee;
   --bg-surface: #ffffff;
-  --bg-hover: rgba(15, 23, 42, 0.04);
-  --bg-active: rgba(15, 23, 42, 0.07);
-  --bg-glass: rgba(255, 255, 255, 0.75);
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.07);
+  --bg-glass: rgba(243, 243, 243, 0.75);
   
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-primary: #1f1f1f;
+  --text-secondary: #5f6368;
+  --text-muted: #767676;
   
   --accent-primary: #2563eb;
   --accent-secondary: #0891b2;
   --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #0891b2 100%);
   
-  --border-color: rgba(15, 23, 42, 0.08);
-  --border-hover: rgba(15, 23, 42, 0.15);
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.15);
   --border-glow: rgba(37, 99, 235, 0.08);
   
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.03);
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
   --shadow-lg: 0 12px 30px rgba(15, 23, 42, 0.08);
   --shadow-glow: 0 0 20px rgba(8, 145, 178, 0.05);
+
+  /* Inline Code Variables (Light Theme red/coral highlights) */
+  --code-text: #c5221f;
+  --code-bg: rgba(197, 34, 31, 0.06);
+  --code-border: rgba(197, 34, 31, 0.12);
 }
 
 [data-theme="light"] .orb {

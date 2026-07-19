@@ -516,8 +516,13 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                 
                 {/* 1. Welcoming Personal Header */}
                 <div className={styles.dashboardHeader}>
-                  <div style={{ marginBottom: "1.25rem" }}>
-                    <SageOrbVisualizer state={orbState} size={130} />
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <img 
+                      src="/icon.png" 
+                      alt="SAGE Branding" 
+                      className={styles.dashboardFullLogo}
+                      style={{ width: "96px", height: "96px" }}
+                    />
                   </div>
                   <h2 className={styles.dashboardGreeting}>{getGreeting()}</h2>
                   <p className={styles.dashboardSubtitle}>How can SAGE assist your analytical workflow today?</p>
@@ -541,7 +546,7 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                       renderUserMessage(msg.content)
                     ) : (
                       <div className={styles.assistantContainer}>
-                        
+
                         {/* Accordion Collapsible Process Steps */}
                         {(msg.plan || msg.reasoning || msg.routing || msg.metrics) && (
                           <div className={styles.thoughtAccordion}>
@@ -551,7 +556,12 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
                               className={styles.thoughtAccordionTrigger}
                             >
                               <div className={styles.thoughtAccordionSummary}>
-                                <Sparkles size={11} className={styles.thoughtSparkle} />
+                                <img 
+                                  src="/icon.png" 
+                                  alt="Icon" 
+                                  className={styles.thoughtSparkle} 
+                                  style={{ width: "12px", height: "12px", objectFit: "contain" }}
+                                />
                                 <span>
                                   {msg.routing ? `Grounded via ${msg.routing.routed_model}` : "Cognitive Execution process"}
                                 </span>
@@ -611,8 +621,8 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
 
                         {/* Main Response text */}
                         {msg.content === "" && !msg.plan && !msg.reasoning && !msg.routing ? (
-                          <div style={{ padding: "0.25rem 0", display: "flex", justifyContent: "flex-start" }}>
-                            <SageOrbVisualizer state="thinking" size={75} showLabel={false} />
+                          <div style={{ padding: "0.75rem 0", display: "flex", justifyContent: "flex-start", width: "100%" }}>
+                            <SageOrbVisualizer state="thinking" size={90} showLabel={true} />
                           </div>
                         ) : (
                           <div className={styles.assistantTextBody}>
@@ -630,8 +640,11 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
           </div>
         </div>
 
+        {/* Smooth Gradient/Blur Fade Mask for scrolling text */}
+        {messages.length > 0 && <div className={styles.bottomFadeMask} />}
+
         {/* Floating Composer Capsule */}
-        <div className={styles.composerContainer}>
+        <div className={`${styles.composerContainer} ${messages.length === 0 ? styles.composerContainerEmpty : styles.composerContainerActive}`}>
           {attachedFile && !isUploadingFile && (
             <div className={styles.attachmentBadge}>
               <Paperclip size={11} /> 
@@ -649,39 +662,10 @@ export default function ChatWindow({ threadId, activeUserId, activeUsername }: C
           {isRecording && (
             <div className={styles.waveOverlay} style={{ padding: "0.25rem 0.75rem", gap: "0.5rem" }}>
               <SageOrbVisualizer state="listening" size={32} showLabel={false} />
-              <span className={styles.waveText}>Recording audio... SAGE is listening</span>
+              <span className={styles.waveText}>  Listening... </span>
             </div>
           )}
 
-          {/* Quick Suggestion Chips (when messages exist and we are idle) */}
-          {messages.length > 0 && !isStreaming && !isRecording && (
-            <div className={styles.suggestionChipsContainer}>
-              <button 
-                type="button" 
-                className={styles.suggestionChip}
-                onClick={() => sendMessage("Explain the trend")}
-              >
-                <Sparkles size={11} className={styles.suggestionChipIcon} />
-                <span>Explain the trend</span>
-              </button>
-              <button 
-                type="button" 
-                className={styles.suggestionChip}
-                onClick={() => sendMessage("Compare by region")}
-              >
-                <Search size={11} className={styles.suggestionChipIcon} />
-                <span>Compare by region</span>
-              </button>
-              <button 
-                type="button" 
-                className={styles.suggestionChip}
-                onClick={() => sendMessage("Show YoY comparison")}
-              >
-                <Activity size={11} className={styles.suggestionChipIcon} />
-                <span>Show YoY comparison</span>
-              </button>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className={`${styles.inputCapsule} ${isFocused ? styles.inputCapsuleFocused : ""}`}>
             <textarea

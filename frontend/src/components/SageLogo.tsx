@@ -3,72 +3,50 @@ import React from 'react';
 interface SageLogoProps {
   variant?: 'sidebar' | 'large' | 'icon';
   className?: string;
+  isThinking?: boolean;
 }
 
 export default function SageLogo({
   variant = 'large',
   className = '',
+  isThinking = false,
 }: SageLogoProps) {
   const isSidebar = variant === 'sidebar';
   const isIcon = variant === 'icon';
   const starSize = isSidebar ? 24 : isIcon ? '100%' : 72;
 
-  // SVG Star Icon Component
+  // SAGE Icon Component with Dynamic Thinking State
   const StarIcon = (
-    <svg
-      viewBox="0 0 100 100"
-      width={starSize}
-      height={starSize}
-      className="sage-logo-star"
+    <div
       style={{
-        display: 'block',
-        filter: isSidebar 
-          ? 'drop-shadow(0 2px 6px rgba(6, 182, 212, 0.25))' 
-          : 'drop-shadow(0 8px 24px rgba(6, 182, 212, 0.35))',
-        animation: 'sage-logo-pulse 4s ease-in-out infinite alternate',
-        flexShrink: 0,
+        position: 'relative',
+        width: typeof starSize === 'number' ? `${starSize}px` : starSize,
+        height: typeof starSize === 'number' ? `${starSize}px` : starSize,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <defs>
-        <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#22d3ee" /> {/* Cyan */}
-          <stop offset="50%" stopColor="#3b82f6" /> {/* Blue */}
-          <stop offset="100%" stopColor="#a855f7" /> {/* Purple */}
-        </linearGradient>
-        <radialGradient id="innerGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.9} />
-          <stop offset="40%" stopColor="#22d3ee" stopOpacity={0.5} />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-        </radialGradient>
-        <radialGradient id="starHalo" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
-          <stop offset="70%" stopColor="#a855f7" stopOpacity={0.08} />
-          <stop offset="100%" stopColor="#000000" stopOpacity={0} />
-        </radialGradient>
-      </defs>
-      {/* Background Soft Glow Orb (only for large) */}
-      {!isSidebar && <circle cx="50" cy="50" r="45" fill="url(#starHalo)" />}
-      
-      {/* Outer Glow Layer */}
-      <path
-        d="M 50 10 Q 50 50 90 50 Q 50 50 50 90 Q 50 50 10 50 Q 50 50 50 10 Z"
-        fill="url(#starGrad)"
-        opacity="0.35"
-        style={{ transformOrigin: 'center', transform: 'scale(1.08)', filter: 'blur(3px)' }}
+      <img
+        src="/icon.png"
+        alt="SAGE Logo"
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          filter: isThinking
+            ? 'drop-shadow(0 0 16px rgba(6, 182, 212, 0.8))'
+            : isSidebar 
+            ? 'drop-shadow(0 2px 6px rgba(6, 182, 212, 0.25))' 
+            : 'drop-shadow(0 8px 24px rgba(6, 182, 212, 0.35))',
+          animation: isThinking
+            ? 'sage-logo-rotate-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite'
+            : 'sage-logo-pulse 4s ease-in-out infinite alternate',
+          flexShrink: 0,
+        }}
       />
-      {/* Main Star */}
-      <path
-        d="M 50 12 Q 50 50 88 50 Q 50 50 50 88 Q 50 50 12 50 Q 50 50 50 12 Z"
-        fill="url(#starGrad)"
-      />
-      {/* Inner Highlight for 3D depth */}
-      <path
-        d="M 50 22 Q 50 50 78 50 Q 50 50 50 78 Q 50 50 22 50 Q 50 50 50 22 Z"
-        fill="url(#innerGlow)"
-      />
-      {/* Central Flare Core */}
-      <circle cx="50" cy="50" r="3.5" fill="#ffffff" style={{ filter: 'drop-shadow(0 0 3px #fff)' }} />
-    </svg>
+    </div>
   );
 
   if (isIcon) {
@@ -91,6 +69,11 @@ export default function SageLogo({
         @keyframes sage-logo-pulse {
           0% { transform: scale(1); }
           100% { transform: scale(1.05); }
+        }
+        @keyframes sage-logo-rotate-pulse {
+          0% { transform: scale(0.95) rotate(0deg); }
+          50% { transform: scale(1.08) rotate(180deg); }
+          100% { transform: scale(0.95) rotate(360deg); }
         }
         .sage-logo-title-wrap {
           display: inline-flex;
@@ -153,17 +136,42 @@ export default function SageLogo({
         </div>
 
         {!isSidebar && (
-          <p 
-            className="sage-logo-subtitle" 
-            style={{ 
-              fontSize: '0.75rem',
-              maxWidth: '300px'
-            }}
-          >
-            Smart Analytics <span style={{ color: 'var(--accent-primary, #3b82f6)', fontWeight: 600 }}>&</span> Generative Engine
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
+            <p 
+              className="sage-logo-subtitle" 
+              style={{ 
+                fontSize: '0.85rem',
+                maxWidth: '320px',
+                textTransform: 'none',
+                letterSpacing: '0.04em',
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginTop: '0.5rem'
+              }}
+            >
+              <span>Smart </span>
+              <span style={{ color: 'var(--accent-primary, #3b82f6)' }}>Analytics</span>
+              <span style={{ color: 'var(--text-muted)' }}> & </span>
+              <span style={{ color: '#a855f7' }}>Generative</span>
+              <span> Engine</span>
+            </p>
+            <p
+              style={{
+                fontSize: '0.8rem',
+                lineHeight: '1.5',
+                color: 'var(--text-muted)',
+                maxWidth: '340px',
+                fontWeight: 300,
+                textAlign: 'center',
+                margin: '0.25rem 0 0.5rem 0'
+              }}
+            >
+              SAGE is an intelligent AI workspace that combines the power of analytics and generative intelligence to help teams explore, analyze and create with confidence.
+            </p>
+          </div>
         )}
       </div>
     </div>
   );
 }
+

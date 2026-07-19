@@ -82,7 +82,7 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <div className={styles.loginBox}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
           <SageLogo variant="large" />
         </div>
         

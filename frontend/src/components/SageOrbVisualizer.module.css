@@ -134,6 +134,70 @@
 
 
 /* --- STATE: THINKING --- */
+.videoWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.45), 0 0 60px rgba(59, 130, 246, 0.25);
+  animation: videoWrapperPulse 3s ease-in-out infinite alternate;
+}
+
+.thinkingVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  filter: contrast(1.1) brightness(1.15) drop-shadow(0 0 16px rgba(6, 182, 212, 0.7));
+  transform: scale(1.05);
+}
+
+.videoOverlayGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 40%, rgba(6, 182, 212, 0.15) 80%, rgba(59, 130, 246, 0.3) 100%);
+  border: 1.5px solid rgba(6, 182, 212, 0.4);
+}
+
+@keyframes videoWrapperPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(59, 130, 246, 0.2);
+    transform: scale(0.98);
+  }
+  100% {
+    box-shadow: 0 0 35px rgba(168, 85, 247, 0.6), 0 0 70px rgba(6, 182, 212, 0.4);
+    transform: scale(1.03);
+  }
+}
+
+.thinkingPulseRing {
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  border-radius: 50%;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  animation: thinkingRingExpand 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes thinkingRingExpand {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
 .particleOrbit {
   position: absolute;
   width: 140px;
@@ -179,12 +243,12 @@
 
 @keyframes thinkingPulse {
   0%, 100% {
-    transform: scale(0.95);
-    filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.4)) hue-rotate(0deg);
+    transform: scale(0.98);
+    filter: drop-shadow(0 0 15px rgba(6, 182, 212, 0.5));
   }
   50% {
-    transform: scale(0.9);
-    filter: drop-shadow(0 0 22px rgba(139, 92, 246, 0.6)) hue-rotate(45deg);
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 25px rgba(139, 92, 246, 0.7));
   }
 }
 

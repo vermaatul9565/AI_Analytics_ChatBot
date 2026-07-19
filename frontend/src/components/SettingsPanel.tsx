@@ -109,6 +109,11 @@ export default function SettingsPanel({
     }
   };
 
+  const handleThemePreview = (newTheme: "light" | "dark" | "system") => {
+    setSettings((prev) => ({ ...prev, theme: newTheme }));
+    onThemeChanged(newTheme);
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveStatus("saving");
@@ -169,21 +174,21 @@ export default function SettingsPanel({
                   <button
                     type="button"
                     className={`${styles.themeOption} ${settings.theme === "light" ? styles.themeOptionActive : ""}`}
-                    onClick={() => setSettings({ ...settings, theme: "light" })}
+                    onClick={() => handleThemePreview("light")}
                   >
                     <Sun size={14} /> Light
                   </button>
                   <button
                     type="button"
                     className={`${styles.themeOption} ${settings.theme === "dark" ? styles.themeOptionActive : ""}`}
-                    onClick={() => setSettings({ ...settings, theme: "dark" })}
+                    onClick={() => handleThemePreview("dark")}
                   >
                     <Moon size={14} /> Dark
                   </button>
                   <button
                     type="button"
                     className={`${styles.themeOption} ${settings.theme === "system" ? styles.themeOptionActive : ""}`}
-                    onClick={() => setSettings({ ...settings, theme: "system" })}
+                    onClick={() => handleThemePreview("system")}
                   >
                     <Monitor size={14} /> System
                   </button>

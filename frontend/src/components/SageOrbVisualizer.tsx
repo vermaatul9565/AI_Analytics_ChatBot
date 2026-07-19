@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styles from "./SageOrbVisualizer.module.css";
 import SageLogo from "./SageLogo";
 
@@ -8,13 +8,17 @@ interface SageOrbVisualizerProps {
   state: OrbState;
   size?: number;
   showLabel?: boolean;
+  videoSrc?: string;
 }
 
 export const SageOrbVisualizer: React.FC<SageOrbVisualizerProps> = ({
   state,
   size = 120,
   showLabel = true,
+  videoSrc = "/thinking-animation.mp4",
 }) => {
+  const [hasVideoError, setHasVideoError] = useState(false);
+
   // Label text matching states
   const labels: Record<OrbState, string> = {
     idle: "SAGE is active",
@@ -26,6 +30,7 @@ export const SageOrbVisualizer: React.FC<SageOrbVisualizerProps> = ({
 
   // State-specific classes
   const stateClass = styles[`state_${state}`] || "";
+  const orbInnerSize = size * 0.75;
 
   return (
     <div className={`${styles.container} ${stateClass}`}>
@@ -45,20 +50,43 @@ export const SageOrbVisualizer: React.FC<SageOrbVisualizerProps> = ({
         )}
 
         {/* State: Thinking Orbit particles */}
-        {state === "thinking" && <div className={styles.particleOrbit}></div>}
+        {state === "thinking" && (
+          <>
+            <div className={styles.particleOrbit}></div>
+            <div className={styles.thinkingPulseRing}></div>
+          </>
+        )}
 
-        {/* Main Logo Orb */}
+        {/* Main Logo Orb or Thinking Video */}
         <div
           className={styles.orbImage}
           style={{
-            width: `${size * 0.75}px`,
-            height: `${size * 0.75}px`,
+            width: `${orbInnerSize}px`,
+            height: `${orbInnerSize}px`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: "50%",
           }}
         >
-          <SageLogo variant="icon" />
+          {state === "thinking" && !hasVideoError ? (
+            <div className={styles.videoWrapper}>
+              <video
+                src={videoSrc}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className={styles.thinkingVideo}
+                onError={() => setHasVideoError(true)}
+              />
+              <div className={styles.videoOverlayGlow} />
+            </div>
+          ) : (
+            <SageLogo variant="icon" isThinking={state === "thinking"} />
+          )}
         </div>
       </div>
 
@@ -112,3 +140,4 @@ export const SageOrbVisualizer: React.FC<SageOrbVisualizerProps> = ({
 };
 
 export default SageOrbVisualizer;
+
