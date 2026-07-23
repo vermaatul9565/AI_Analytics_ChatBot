@@ -150,6 +150,10 @@ def get_registered_models_dict() -> List[Dict[str, Any]]:
             "model_name": m.model_name,
             "context_window": m.context_window,
             "quality_score": m.quality_score,
+            "supports_vision": m.supports_vision,
+            "supports_reasoning": m.supports_reasoning,
+            "supports_tool_calling": m.supports_tool_calling,
+            "preferred_categories": m.preferred_categories,
             "input_cost_per_m": m.input_token_cost_per_million,
             "output_cost_per_m": m.output_token_cost_per_million
         }

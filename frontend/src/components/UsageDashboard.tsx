@@ -3,13 +3,19 @@
 import React, { useState, useEffect } from "react";
 import { 
   DollarSign, TrendingUp, Cpu, BarChart3, Clock, Layers, 
-  Users, RefreshCw, Download, Search, ShieldCheck, User, Zap, Sparkles 
+  Users, RefreshCw, Download, Search, ShieldCheck, User, Zap, Sparkles,
+  ArrowUpDown, ChevronUp, ChevronDown
 } from "lucide-react";
 import styles from "./UsageDashboard.module.css";
 
 interface UsageDashboardProps {
   activeUserId: string;
   userRole: string;
+}
+
+interface SortConfig {
+  key: string;
+  direction: "asc" | "desc";
 }
 
 interface ModelMetric {
@@ -45,6 +51,10 @@ interface RegisteredModel {
   model_name: string;
   context_window: number;
   quality_score: number;
+  supports_vision?: boolean;
+  supports_reasoning?: boolean;
+  supports_tool_calling?: boolean;
+  preferred_categories?: string[];
   input_cost_per_m: number;
   output_cost_per_m: number;
 }
@@ -63,6 +73,55 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedModelFilter, setSelectedModelFilter] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Sort States for 3 Tables
+  const [matrixSort, setMatrixSort] = useState<SortConfig>({ key: "total_requests", direction: "desc" });
+  const [personalSort, setPersonalSort] = useState<SortConfig>({ key: "total_requests", direction: "desc" });
+  const [catalogSort, setCatalogSort] = useState<SortConfig>({ key: "id", direction: "asc" });
+
+  const handleHeaderClick = (
+    key: string,
+    currentSort: SortConfig,
+    setSort: React.Dispatch<React.SetStateAction<SortConfig>>
+  ) => {
+    if (currentSort.key === key) {
+      setSort({
+        key,
+        direction: currentSort.direction === "asc" ? "desc" : "asc",
+      });
+    } else {
+      setSort({ key, direction: "desc" });
+    }
+  };
+
+  const renderSortHeader = (
+    label: string,
+    key: string,
+    currentSort: SortConfig,
+    setSort: React.Dispatch<React.SetStateAction<SortConfig>>
+  ) => {
+    const isActive = currentSort.key === key;
+    return (
+      <th 
+        className={styles.sortableHeader}
+        onClick={() => handleHeaderClick(key, currentSort, setSort)}
+        title={`Sort by ${label}`}
+      >
+        <div className={styles.headerContent}>
+          <span>{label}</span>
+          {isActive ? (
+            currentSort.direction === "asc" ? (
+              <ChevronUp size={14} className={`${styles.sortIcon} ${styles.sortIconActive}`} />
+            ) : (
+              <ChevronDown size={14} className={`${styles.sortIcon} ${styles.sortIconActive}`} />
+            )
+          ) : (
+            <ArrowUpDown size={12} className={styles.sortIcon} />
+          )}
+        </div>
+      </th>
+    );
+  };
 
   // User metrics data
   const [userMetrics, setUserMetrics] = useState<any>(null);
@@ -156,6 +215,52 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
     const matchesModel = selectedModelFilter === "all" || item.model_id === selectedModelFilter;
     return matchesSearch && matchesModel;
   });
+
+  // Sorted matrix
+  const sortedMatrix = React.useMemo(() => {
+    return [...filteredMatrix].sort((a, b) => {
+      let aVal: any = (a as any)[matrixSort.key];
+      let bVal: any = (b as any)[matrixSort.key];
+      if (aVal === undefined || aVal === null) aVal = "";
+      if (bVal === undefined || bVal === null) bVal = "";
+      if (typeof aVal === "string") {
+        const cmp = aVal.localeCompare(bVal);
+        return matrixSort.direction === "asc" ? cmp : -cmp;
+      }
+      return matrixSort.direction === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [filteredMatrix, matrixSort]);
+
+  // Sorted personal metrics
+  const sortedPersonalMetrics = React.useMemo(() => {
+    const metrics: ModelMetric[] = userMetrics?.model_metrics || [];
+    return [...metrics].sort((a, b) => {
+      let aVal: any = (a as any)[personalSort.key];
+      let bVal: any = (b as any)[personalSort.key];
+      if (aVal === undefined || aVal === null) aVal = "";
+      if (bVal === undefined || bVal === null) bVal = "";
+      if (typeof aVal === "string") {
+        const cmp = aVal.localeCompare(bVal);
+        return personalSort.direction === "asc" ? cmp : -cmp;
+      }
+      return personalSort.direction === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [userMetrics?.model_metrics, personalSort]);
+
+  // Sorted catalog models
+  const sortedCatalog = React.useMemo(() => {
+    return [...registeredModels].sort((a, b) => {
+      let aVal: any = (a as any)[catalogSort.key];
+      let bVal: any = (b as any)[catalogSort.key];
+      if (aVal === undefined || aVal === null) aVal = "";
+      if (bVal === undefined || bVal === null) bVal = "";
+      if (typeof aVal === "string") {
+        const cmp = aVal.localeCompare(bVal);
+        return catalogSort.direction === "asc" ? cmp : -cmp;
+      }
+      return catalogSort.direction === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [registeredModels, catalogSort]);
 
   // Active summary numbers
   const currentSummary = activeTab === "matrix" && adminMetrics 
@@ -254,9 +359,9 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
         </div>
       </div>
 
-      {/* Tabs if Admin */}
-      {userRole === "admin" && (
-        <div className={styles.tabsContainer}>
+      {/* Tabs Container */}
+      <div className={styles.tabsContainer}>
+        {userRole === "admin" && (
           <button 
             className={`${styles.tabButton} ${activeTab === "matrix" ? styles.tabButtonActive : ""}`}
             onClick={() => setActiveTab("matrix")}
@@ -264,22 +369,22 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
             <Users size={16} />
             <span>Per User Per Model Matrix</span>
           </button>
-          <button 
-            className={`${styles.tabButton} ${activeTab === "personal" ? styles.tabButtonActive : ""}`}
-            onClick={() => setActiveTab("personal")}
-          >
-            <User size={16} />
-            <span>My Personal Usage</span>
-          </button>
-          <button 
-            className={`${styles.tabButton} ${activeTab === "models" ? styles.tabButtonActive : ""}`}
-            onClick={() => setActiveTab("models")}
-          >
-            <Cpu size={16} />
-            <span>Dynamic Models Registry</span>
-          </button>
-        </div>
-      )}
+        )}
+        <button 
+          className={`${styles.tabButton} ${activeTab === "personal" ? styles.tabButtonActive : ""}`}
+          onClick={() => setActiveTab("personal")}
+        >
+          <User size={16} />
+          <span>My Personal Usage</span>
+        </button>
+        <button 
+          className={`${styles.tabButton} ${activeTab === "models" ? styles.tabButtonActive : ""}`}
+          onClick={() => setActiveTab("models")}
+        >
+          <Sparkles size={16} />
+          <span>Available Model Catalog</span>
+        </button>
+      </div>
 
       {/* Top Overview KPI Cards */}
       <div className={styles.cardsGrid}>
@@ -417,26 +522,26 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
             <table className={styles.dataTable}>
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Model</th>
-                  <th>Provider</th>
-                  <th>LLM Requests</th>
+                  {renderSortHeader("User", "username", matrixSort, setMatrixSort)}
+                  {renderSortHeader("Model", "model_id", matrixSort, setMatrixSort)}
+                  {renderSortHeader("Provider", "provider", matrixSort, setMatrixSort)}
+                  {renderSortHeader("LLM Requests", "total_requests", matrixSort, setMatrixSort)}
                   <th>Complexity Breakdown</th>
-                  <th>Prompt Tokens</th>
-                  <th>Completion Tokens</th>
-                  <th>Avg Latency</th>
-                  <th>Total Cost ($)</th>
+                  {renderSortHeader("Prompt Tokens", "prompt_tokens", matrixSort, setMatrixSort)}
+                  {renderSortHeader("Completion Tokens", "completion_tokens", matrixSort, setMatrixSort)}
+                  {renderSortHeader("Avg Latency", "avg_latency", matrixSort, setMatrixSort)}
+                  {renderSortHeader("Total Cost ($)", "total_cost_usd", matrixSort, setMatrixSort)}
                 </tr>
               </thead>
               <tbody>
-                {filteredMatrix.length === 0 ? (
+                {sortedMatrix.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: "center", padding: "2rem" }}>
                       No metrics records found for the selected filter.
                     </td>
                   </tr>
                 ) : (
-                  filteredMatrix.map((item, idx) => (
+                  sortedMatrix.map((item, idx) => (
                     <tr key={`${item.user_id}-${item.model_id}-${idx}`}>
                       <td>
                         <span className={styles.userChip}>
@@ -488,25 +593,25 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
             <table className={styles.dataTable}>
               <thead>
                 <tr>
-                  <th>Model</th>
-                  <th>Provider</th>
-                  <th>Total Requests</th>
+                  {renderSortHeader("Model", "model_id", personalSort, setPersonalSort)}
+                  {renderSortHeader("Provider", "provider", personalSort, setPersonalSort)}
+                  {renderSortHeader("Total Requests", "total_requests", personalSort, setPersonalSort)}
                   <th>Complexity Types</th>
-                  <th>Prompt Tokens</th>
-                  <th>Completion Tokens</th>
-                  <th>Avg Latency</th>
-                  <th>Total Cost ($)</th>
+                  {renderSortHeader("Prompt Tokens", "prompt_tokens", personalSort, setPersonalSort)}
+                  {renderSortHeader("Completion Tokens", "completion_tokens", personalSort, setPersonalSort)}
+                  {renderSortHeader("Avg Latency", "avg_latency", personalSort, setPersonalSort)}
+                  {renderSortHeader("Total Cost ($)", "total_cost_usd", personalSort, setPersonalSort)}
                 </tr>
               </thead>
               <tbody>
-                {!userMetrics?.model_metrics || userMetrics.model_metrics.length === 0 ? (
+                {sortedPersonalMetrics.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: "center", padding: "2rem" }}>
                       No personal usage records recorded yet. Start a chat session to generate usage metrics.
                     </td>
                   </tr>
                 ) : (
-                  userMetrics.model_metrics.map((m: ModelMetric) => (
+                  sortedPersonalMetrics.map((m: ModelMetric) => (
                     <tr key={m.model_id}>
                       <td>
                         <span className={styles.modelBadge}>
@@ -536,16 +641,16 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
         </div>
       )}
 
-      {/* Dynamic Registered Models & Rates (Tab 3) */}
+      {/* Available Model Catalog & Details (Tab 3) */}
       {(activeTab === "models" || registeredModels.length > 0) && (
         <div className={styles.sectionBlock}>
           <div className={styles.sectionHeader}>
             <h3 className={styles.sectionTitle}>
               <Sparkles size={18} color="#c084fc" />
-              Dynamic Model Registry & Token Pricing
+              Available Model Catalog & Details
             </h3>
             <span className={styles.cardSubtext}>
-              Any new model added to ModelRegistry automatically populates here.
+              Compare context limits, reasoning capacity, capabilities, recommended use cases, and token rates to select the optimal model for your tasks.
             </span>
           </div>
 
@@ -553,16 +658,18 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
             <table className={styles.dataTable}>
               <thead>
                 <tr>
-                  <th>Model ID</th>
-                  <th>Provider</th>
-                  <th>Context Window</th>
-                  <th>Quality Score</th>
-                  <th>Input Cost / 1M Tokens</th>
-                  <th>Output Cost / 1M Tokens</th>
+                  {renderSortHeader("Model ID", "id", catalogSort, setCatalogSort)}
+                  {renderSortHeader("Provider", "provider", catalogSort, setCatalogSort)}
+                  <th>Capabilities</th>
+                  <th>Best Use Cases</th>
+                  {renderSortHeader("Context Window", "context_window", catalogSort, setCatalogSort)}
+                  {renderSortHeader("Quality Score", "quality_score", catalogSort, setCatalogSort)}
+                  {renderSortHeader("Input Cost / 1M", "input_cost_per_m", catalogSort, setCatalogSort)}
+                  {renderSortHeader("Output Cost / 1M", "output_cost_per_m", catalogSort, setCatalogSort)}
                 </tr>
               </thead>
               <tbody>
-                {registeredModels.map((reg) => (
+                {sortedCatalog.map((reg) => (
                   <tr key={reg.id}>
                     <td>
                       <span className={styles.modelBadge}>
@@ -571,10 +678,30 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
                       </span>
                     </td>
                     <td style={{ textTransform: "capitalize", color: "#94a3b8" }}>{reg.provider}</td>
+                    <td>
+                      <div className={styles.capabilitiesWrapper}>
+                        {reg.supports_vision && <span className={`${styles.badgeCap} ${styles.badgeVision}`}>Vision</span>}
+                        {reg.supports_reasoning && <span className={`${styles.badgeCap} ${styles.badgeReasoning}`}>Reasoning</span>}
+                        {reg.supports_tool_calling && <span className={`${styles.badgeCap} ${styles.badgeTools}`}>Tools</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.categoriesWrapper}>
+                        {reg.preferred_categories && reg.preferred_categories.length > 0 ? (
+                          reg.preferred_categories.slice(0, 3).map((cat) => (
+                            <span key={cat} className={styles.categoryChip}>
+                              {cat.replace("_", " ")}
+                            </span>
+                          ))
+                        ) : (
+                          <span style={{ color: "#64748b", fontSize: "0.75rem" }}>General</span>
+                        )}
+                      </div>
+                    </td>
                     <td>{reg.context_window?.toLocaleString()} tokens</td>
                     <td>{(reg.quality_score * 100).toFixed(0)}%</td>
-                    <td style={{ color: "#34d399" }}>${reg.input_cost_per_m?.toFixed(4)}</td>
-                    <td style={{ color: "#34d399" }}>${reg.output_cost_per_m?.toFixed(4)}</td>
+                    <td style={{ color: "#34d399", fontWeight: 600 }}>${reg.input_cost_per_m?.toFixed(4)}</td>
+                    <td style={{ color: "#34d399", fontWeight: 600 }}>${reg.output_cost_per_m?.toFixed(4)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -41,6 +41,8 @@ const UNIFIED_MODELS = [
   { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite (Low)", provider: "google" },
   { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash (Medium)", provider: "google" },
   { id: "gemini-3.5-flash-high", name: "Gemini 3.5 Flash (High)", provider: "google" },
+  { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash (Medium)", provider: "google" },
+  { id: "gemini-3.6-flash-high", name: "Gemini 3.6 Flash (High)", provider: "google" },
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Low)", provider: "google" },
   { id: "gemini-3.1-pro-preview-high", name: "Gemini 3.1 Pro (High)", provider: "google" },
   { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", provider: "anthropic" },

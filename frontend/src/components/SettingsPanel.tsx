@@ -30,6 +30,8 @@ const UNIFIED_MODELS = [
   { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite (Low)" },
   { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash (Medium)" },
   { id: "gemini-3.5-flash-high", name: "Gemini 3.5 Flash (High)" },
+  { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash (Medium)" },
+  { id: "gemini-3.6-flash-high", name: "Gemini 3.6 Flash (High)" },
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Low)" },
   { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
   { id: "gpt-4.6-omni", name: "GPT 4.6 Omni" }

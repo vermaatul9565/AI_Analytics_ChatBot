@@ -10,6 +10,8 @@ class LLMFactory:
         "gemini-3.1-flash-lite": {"provider": "google", "model": "gemini-3.1-flash-lite"},
         "gemini-3.5-flash": {"provider": "google", "model": "gemini-3.5-flash"},
         "gemini-3.5-flash-high": {"provider": "google", "model": "gemini-3.5-flash"},
+        "gemini-3.6-flash": {"provider": "google", "model": "gemini-3.6-flash"},
+        "gemini-3.6-flash-high": {"provider": "google", "model": "gemini-3.6-flash"},
         "gemini-3.1-pro-preview": {"provider": "google", "model": "gemini-3.1-pro-preview"},
         "gemini-3.1-pro-preview-high": {"provider": "google", "model": "gemini-3.1-pro-preview"},
         "claude-sonnet-4.6": {"provider": "anthropic", "model": "claude-3-5-sonnet-20241022"},
