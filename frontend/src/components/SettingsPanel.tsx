@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, UserPlus, Save, X, LogOut, Settings, ShieldAlert, Monitor, Sun, Moon } from "lucide-react";
+import { User, UserPlus, Save, X, LogOut, Settings, ShieldAlert, Monitor, Sun, Moon, TrendingUp } from "lucide-react";
 import styles from "./SettingsPanel.module.css";
 
 interface SettingsPanelProps {
@@ -10,6 +10,7 @@ interface SettingsPanelProps {
   userRole: string;
   onClose: () => void;
   onThemeChanged: (theme: "light" | "dark" | "system") => void;
+  onOpenUsage?: () => void;
 }
 
 interface UserProfile {
@@ -38,7 +39,8 @@ export default function SettingsPanel({
   activeUserId,
   userRole,
   onClose,
-  onThemeChanged
+  onThemeChanged,
+  onOpenUsage
 }: SettingsPanelProps) {
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -255,6 +257,17 @@ export default function SettingsPanel({
                   <span className={styles.accountRole}>Role: {userRole}</span>
                 </div>
               </div>
+
+              {onOpenUsage && (
+                <button
+                  type="button"
+                  onClick={onOpenUsage}
+                  className={styles.saveButton}
+                  style={{ marginBottom: "0.75rem", background: "rgba(59, 130, 246, 0.15)", borderColor: "rgba(59, 130, 246, 0.3)", color: "#60a5fa" }}
+                >
+                  <TrendingUp size={14} /> Open Usage & Cost Dashboard
+                </button>
+              )}
 
               <button 
                 onClick={() => {

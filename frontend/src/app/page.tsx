@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import ChatWindow from "@/components/ChatWindow";
 import SettingsPanel from "@/components/SettingsPanel";
 import KnowledgePanel from "@/components/KnowledgePanel";
+import UsageDashboard from "@/components/UsageDashboard";
 import { 
   MessageSquare, Plus, BrainCircuit, BarChart2, 
   Database, CircleDot, Settings, Users, Pencil, Trash2, 
-  Search, BookOpen, Clock, Play
+  Search, BookOpen, Clock, Play, TrendingUp
 } from "lucide-react";
 import styles from "./page.module.css";
 import SageLogo from "@/components/SageLogo";
@@ -26,7 +27,7 @@ export default function Home() {
   const [activeUserId, setActiveUserId] = useState<string>("");
   const [activeUsername, setActiveUsername] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("user");
-  const [view, setView] = useState<"chat" | "profile" | "knowledge" | "analytics" | "automations" | "settings">("chat");
+  const [view, setView] = useState<"chat" | "profile" | "knowledge" | "analytics" | "automations" | "settings" | "usage">("chat");
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
@@ -376,26 +377,37 @@ export default function Home() {
 
         {/* Sidebar Footer Controls like Gemini */}
         <div className={styles.sidebarFooter}>
-          <div 
-            className={`${styles.userProfileFooter} ${view === "profile" ? styles.userProfileFooterActive : ""}`}
-            onClick={() => setView("profile")}
-            title="View profile & long-term memory"
-          >
-            <div className={styles.avatarMini}>
-              {activeUsername.substring(0, 2).toUpperCase()}
-            </div>
-            <div className={styles.profileTextWrapper}>
-              <span className={styles.activeUserLabel}>{activeUsername}</span>
-            </div>
-          </div>
-          
           <button 
-            className={`${styles.settingsIconBtn} ${view === "settings" ? styles.settingsIconBtnActive : ""}`}
-            onClick={() => setView("settings")}
-            title="System Settings"
+            className={`${styles.userSectionLink} ${view === "usage" ? styles.userSectionLinkActive : ""}`}
+            onClick={() => setView("usage")}
+            title="Usage & Cost Dashboard"
           >
-            <Settings size={16} />
+            <TrendingUp size={16} />
+            <span>Usage & Cost</span>
           </button>
+
+          <div className={styles.userProfileRow}>
+            <div 
+              className={`${styles.userProfileFooter} ${view === "profile" ? styles.userProfileFooterActive : ""}`}
+              onClick={() => setView("profile")}
+              title="View profile & long-term memory"
+            >
+              <div className={styles.avatarMini}>
+                {activeUsername.substring(0, 2).toUpperCase()}
+              </div>
+              <div className={styles.profileTextWrapper}>
+                <span className={styles.activeUserLabel}>{activeUsername}</span>
+              </div>
+            </div>
+            
+            <button 
+              className={`${styles.settingsIconBtn} ${view === "settings" ? styles.settingsIconBtnActive : ""}`}
+              onClick={() => setView("settings")}
+              title="System Settings"
+            >
+              <Settings size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -403,6 +415,9 @@ export default function Home() {
       <div className={styles.mainContent}>
         {view === "chat" && (
           <ChatWindow threadId={threadId} activeUserId={activeUserId} activeUsername={activeUsername} />
+        )}
+        {view === "usage" && (
+          <UsageDashboard activeUserId={activeUserId} userRole={userRole} />
         )}
         {view === "profile" && (
           <KnowledgePanel activeUserId={activeUserId} />
@@ -427,6 +442,7 @@ export default function Home() {
             userRole={userRole}
             onClose={() => setView("chat")}
             onThemeChanged={handleThemeChange}
+            onOpenUsage={() => setView("usage")}
           />
         )}
         {view === "analytics" && (

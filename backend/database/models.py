@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, JSON, Float
 from sqlalchemy.orm import declarative_base, relationship
 from pgvector.sqlalchemy import Vector
 
@@ -93,4 +93,21 @@ class UserProcedure(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="procedures")
+
+class LLMUsageLog(Base):
+    """LLM Usage Log: stores token usage, latency, complexity, and calculated cost per request."""
+    __tablename__ = "llm_usage_logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    thread_id = Column(String, nullable=True, index=True)
+    selected_model = Column(String, nullable=False, index=True)
+    complexity = Column(String, nullable=False, default="simple", index=True)
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    calculated_cost_usd = Column(Float, default=0.0)
+    latency_seconds = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    user = relationship("User")
 

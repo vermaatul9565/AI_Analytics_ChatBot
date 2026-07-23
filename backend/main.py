@@ -17,9 +17,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from agent import graph
 from llm.registry.model_registry import ModelRegistry
-from database.connection import init_db, get_db
-from database.models import User, UserSetting, ChatThread, ChatMessage, UserMemory, UserEpisode, UserProcedure
+from database.connection import init_db, get_db, SessionLocal
+from database.models import User, UserSetting, ChatThread, ChatMessage, UserMemory, UserEpisode, UserProcedure, LLMUsageLog
 from memory.memory_service import extract_and_save_memories, retrieve_relevant_memories, generate_embedding
+from metrics_service import backfill_metrics_from_jsonl, record_usage_log, get_user_usage_metrics, get_admin_usage_metrics
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +40,13 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     init_db()
+    db = SessionLocal()
+    try:
+        backfill_metrics_from_jsonl(db)
+    except Exception as e:
+        logger.error(f"[Startup] Failed backfilling metrics: {e}")
+    finally:
+        db.close()
 
 # Pydantic schemas
 class AuthRequest(BaseModel):
@@ -518,6 +526,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             log_entry = {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "thread_id": request.thread_id,
+                "user_id": request.user_id,
                 "message": request.message,
                 "complexity": current_complexity,
                 "selected_model": routed_model_id,
@@ -531,6 +540,19 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             
             with open(log_file, "a") as f:
                 f.write(json.dumps(log_entry) + "\n")
+
+            # Persist usage metric into PostgreSQL database
+            record_usage_log(
+                db=db,
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+                selected_model=routed_model_id,
+                complexity=current_complexity,
+                prompt_tokens=total_prompt_tokens,
+                completion_tokens=total_completion_tokens,
+                calculated_cost_usd=calculated_cost,
+                latency_seconds=latency
+            )
                 
             logger.info(f"[Observability] Logged request. Model: {routed_model_id} | Latency: {round(latency, 2)}s | Cost: ${round(calculated_cost, 6)}")
             
@@ -711,6 +733,28 @@ async def upload_file_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"[API] File upload/extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"File extraction failed: {str(e)}")
+
+@app.get("/api/users/{user_id}/usage-metrics")
+def get_user_metrics_endpoint(
+    user_id: str, 
+    timeframe: str = "all", 
+    start_date: str | None = None, 
+    end_date: str | None = None, 
+    db: Session = Depends(get_db)
+):
+    """Retrieve usage and cost metrics for a specific user."""
+    return get_user_usage_metrics(db, user_id=user_id, timeframe=timeframe, start_date=start_date, end_date=end_date)
+
+@app.get("/api/admin/usage-metrics")
+def get_admin_metrics_endpoint(
+    timeframe: str = "all", 
+    start_date: str | None = None, 
+    end_date: str | None = None, 
+    db: Session = Depends(get_db)
+):
+    """Retrieve system-wide usage and cost metrics (Admin level)."""
+    return get_admin_usage_metrics(db, timeframe=timeframe, start_date=start_date, end_date=end_date)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

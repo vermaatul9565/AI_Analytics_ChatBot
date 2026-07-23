@@ -336,9 +336,44 @@
   border-top: 1px solid var(--border-color);
   padding-top: 0.75rem;
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.userSectionLink {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.userSectionLink:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.userSectionLinkActive {
+  background: var(--bg-surface) !important;
+  color: var(--accent-primary) !important;
+  border-color: var(--border-color) !important;
+  font-weight: 600;
+}
+
+.userProfileRow {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .userProfileFooter {
