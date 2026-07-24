@@ -154,6 +154,7 @@ def get_registered_models_dict() -> List[Dict[str, Any]]:
             "supports_reasoning": m.supports_reasoning,
             "supports_tool_calling": m.supports_tool_calling,
             "preferred_categories": m.preferred_categories,
+            "added_date": getattr(m, "added_date", "2026-06-01") or "2026-06-01",
             "input_cost_per_m": m.input_token_cost_per_million,
             "output_cost_per_m": m.output_token_cost_per_million
         }

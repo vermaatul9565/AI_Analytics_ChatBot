@@ -55,6 +55,7 @@ interface RegisteredModel {
   supports_reasoning?: boolean;
   supports_tool_calling?: boolean;
   preferred_categories?: string[];
+  added_date?: string;
   input_cost_per_m: number;
   output_cost_per_m: number;
 }
@@ -231,9 +232,13 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
     });
   }, [filteredMatrix, matrixSort]);
 
-  // Sorted personal metrics
+  // Sorted personal metrics (filtered by selected model)
   const sortedPersonalMetrics = React.useMemo(() => {
-    const metrics: ModelMetric[] = userMetrics?.model_metrics || [];
+    const rawMetrics: ModelMetric[] = userMetrics?.model_metrics || [];
+    const metrics = selectedModelFilter === "all"
+      ? rawMetrics
+      : rawMetrics.filter((m) => m.model_id === selectedModelFilter);
+
     return [...metrics].sort((a, b) => {
       let aVal: any = (a as any)[personalSort.key];
       let bVal: any = (b as any)[personalSort.key];
@@ -245,11 +250,51 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
       }
       return personalSort.direction === "asc" ? aVal - bVal : bVal - aVal;
     });
-  }, [userMetrics?.model_metrics, personalSort]);
+  }, [userMetrics?.model_metrics, personalSort, selectedModelFilter]);
 
-  // Sorted catalog models
+  // Sorted & filtered catalog models
   const sortedCatalog = React.useMemo(() => {
-    return [...registeredModels].sort((a, b) => {
+    let catalog = registeredModels;
+
+    // Filter by selected model dropdown
+    if (selectedModelFilter !== "all") {
+      catalog = catalog.filter((m) => m.id === selectedModelFilter);
+    }
+
+    // Filter by timeframe / date range
+    if (timeframe !== "all") {
+      let startDateObj: Date | null = null;
+      let endDateObj: Date | null = null;
+
+      if (timeframe === "today") {
+        startDateObj = new Date();
+        startDateObj.setHours(0, 0, 0, 0);
+      } else if (timeframe === "7d") {
+        startDateObj = new Date();
+        startDateObj.setDate(startDateObj.getDate() - 7);
+      } else if (timeframe === "30d") {
+        startDateObj = new Date();
+        startDateObj.setDate(startDateObj.getDate() - 30);
+      } else if (timeframe === "custom" && startDate) {
+        startDateObj = new Date(startDate);
+        if (endDate) {
+          endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+        }
+      }
+
+      if (startDateObj) {
+        catalog = catalog.filter((m) => {
+          if (!m.added_date) return true;
+          const mDate = new Date(m.added_date);
+          if (mDate < startDateObj!) return false;
+          if (endDateObj && mDate > endDateObj) return false;
+          return true;
+        });
+      }
+    }
+
+    return [...catalog].sort((a, b) => {
       let aVal: any = (a as any)[catalogSort.key];
       let bVal: any = (b as any)[catalogSort.key];
       if (aVal === undefined || aVal === null) aVal = "";
@@ -260,21 +305,68 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
       }
       return catalogSort.direction === "asc" ? aVal - bVal : bVal - aVal;
     });
-  }, [registeredModels, catalogSort]);
+  }, [registeredModels, catalogSort, selectedModelFilter, timeframe, startDate, endDate]);
 
-  // Active summary numbers
-  const currentSummary = activeTab === "matrix" && adminMetrics 
-    ? adminMetrics.summary 
-    : userMetrics?.summary || { total_cost_usd: 0, total_requests: 0, total_tokens: 0, avg_latency_seconds: 0 };
+  // Active summary numbers dynamically filtered by model
+  const currentSummary = React.useMemo(() => {
+    if (activeTab === "matrix" && adminMetrics) {
+      if (selectedModelFilter === "all") return adminMetrics.summary;
+      const items = (adminMetrics.user_model_matrix || []).filter((m: any) => m.model_id === selectedModelFilter);
+      const total_cost = items.reduce((sum: number, m: any) => sum + (m.total_cost_usd || 0), 0);
+      const total_requests = items.reduce((sum: number, m: any) => sum + (m.total_requests || 0), 0);
+      const prompt_tokens = items.reduce((sum: number, m: any) => sum + (m.prompt_tokens || 0), 0);
+      const completion_tokens = items.reduce((sum: number, m: any) => sum + (m.completion_tokens || 0), 0);
+      const lat_sum = items.reduce((sum: number, m: any) => sum + ((m.avg_latency || 0) * (m.total_requests || 1)), 0);
+      return {
+        total_cost_usd: Number(total_cost.toFixed(6)),
+        total_requests,
+        total_tokens: prompt_tokens + completion_tokens,
+        prompt_tokens,
+        completion_tokens,
+        avg_latency_seconds: total_requests > 0 ? Number((lat_sum / total_requests).toFixed(2)) : 0.0,
+      };
+    } else {
+      const rawMetrics: ModelMetric[] = userMetrics?.model_metrics || [];
+      if (selectedModelFilter === "all") {
+        return userMetrics?.summary || { total_cost_usd: 0, total_requests: 0, total_tokens: 0, avg_latency_seconds: 0 };
+      }
+      const items = rawMetrics.filter((m) => m.model_id === selectedModelFilter);
+      const total_cost = items.reduce((sum, m) => sum + (m.total_cost_usd || 0), 0);
+      const total_requests = items.reduce((sum, m) => sum + (m.total_requests || 0), 0);
+      const prompt_tokens = items.reduce((sum, m) => sum + (m.prompt_tokens || 0), 0);
+      const completion_tokens = items.reduce((sum, m) => sum + (m.completion_tokens || 0), 0);
+      const lat_sum = items.reduce((sum, m) => sum + ((m.avg_latency || 0) * (m.total_requests || 1)), 0);
+      return {
+        total_cost_usd: Number(total_cost.toFixed(6)),
+        total_requests,
+        total_tokens: prompt_tokens + completion_tokens,
+        prompt_tokens,
+        completion_tokens,
+        avg_latency_seconds: total_requests > 0 ? Number((lat_sum / total_requests).toFixed(2)) : 0.0,
+      };
+    }
+  }, [activeTab, adminMetrics, userMetrics, selectedModelFilter]);
 
-  const currentComplexitySummary = activeTab === "matrix" && adminMetrics
-    ? (adminMetrics.models_summary || []).reduce((acc: any, m: any) => {
+  const currentComplexitySummary = React.useMemo(() => {
+    if (activeTab === "matrix" && adminMetrics) {
+      const items = (adminMetrics.user_model_matrix || []).filter((m: any) => selectedModelFilter === "all" || m.model_id === selectedModelFilter);
+      return items.reduce((acc: any, m: any) => {
         Object.entries(m.complexity_breakdown || {}).forEach(([k, v]) => {
           acc[k] = (acc[k] || 0) + (v as number);
         });
         return acc;
-      }, {})
-    : userMetrics?.complexity_summary || {};
+      }, {});
+    } else {
+      const rawMetrics: ModelMetric[] = userMetrics?.model_metrics || [];
+      const items = selectedModelFilter === "all" ? rawMetrics : rawMetrics.filter((m) => m.model_id === selectedModelFilter);
+      return items.reduce((acc: any, m: any) => {
+        Object.entries(m.complexity_breakdown || {}).forEach(([k, v]) => {
+          acc[k] = (acc[k] || 0) + (v as number);
+        });
+        return acc;
+      }, {});
+    }
+  }, [activeTab, adminMetrics, userMetrics, selectedModelFilter]);
 
   const totalReqs = currentSummary.total_requests || 1;
   const simpleCount = currentComplexitySummary.simple || 0;
@@ -347,11 +439,6 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
             </select>
           )}
 
-          <button className={styles.actionBtn} onClick={fetchMetrics} title="Refresh metrics">
-            <RefreshCw size={14} className={loading ? styles.spinner : ""} />
-            <span>Refresh</span>
-          </button>
-
           <button className={styles.actionBtn} onClick={handleExportJSON} title="Export JSON">
             <Download size={14} />
             <span>Export JSON</span>
@@ -386,114 +473,118 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
         </button>
       </div>
 
-      {/* Top Overview KPI Cards */}
-      <div className={styles.cardsGrid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardLabel}>Total Cost</span>
-            <div className={styles.cardIconWrapper} style={{ background: "rgba(52, 211, 153, 0.15)", color: "#34d399" }}>
-              <DollarSign size={18} />
+      {/* Top Overview KPI Cards & Complexity Breakdown (Usage Tabs) */}
+      {(activeTab === "personal" || activeTab === "matrix") && (
+        <>
+          <div className={styles.cardsGrid}>
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <span className={styles.cardLabel}>Total Cost</span>
+                <div className={styles.cardIconWrapper} style={{ background: "rgba(52, 211, 153, 0.15)", color: "#34d399" }}>
+                  <DollarSign size={18} />
+                </div>
+              </div>
+              <span className={styles.cardValue}>${currentSummary.total_cost_usd?.toFixed(6) || "0.000000"}</span>
+              <span className={styles.cardSubtext}>Calculated LLM token consumption expenditure</span>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <span className={styles.cardLabel}>Total LLM Requests</span>
+                <div className={styles.cardIconWrapper} style={{ background: "rgba(59, 130, 246, 0.15)", color: "#60a5fa" }}>
+                  <BarChart3 size={18} />
+                </div>
+              </div>
+              <span className={styles.cardValue}>{currentSummary.total_requests || 0}</span>
+              <span className={styles.cardSubtext}>Inferences processed across models</span>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <span className={styles.cardLabel}>Total Tokens</span>
+                <div className={styles.cardIconWrapper} style={{ background: "rgba(168, 85, 247, 0.15)", color: "#c084fc" }}>
+                  <Layers size={18} />
+                </div>
+              </div>
+              <span className={styles.cardValue}>{(currentSummary.total_tokens || 0).toLocaleString()}</span>
+              <span className={styles.cardSubtext}>
+                In: {(currentSummary.prompt_tokens || 0).toLocaleString()} | Out: {(currentSummary.completion_tokens || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <span className={styles.cardLabel}>Avg Latency</span>
+                <div className={styles.cardIconWrapper} style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24" }}>
+                  <Clock size={18} />
+                </div>
+              </div>
+              <span className={styles.cardValue}>{currentSummary.avg_latency_seconds || 0}s</span>
+              <span className={styles.cardSubtext}>Average response time per inference</span>
             </div>
           </div>
-          <span className={styles.cardValue}>${currentSummary.total_cost_usd?.toFixed(6) || "0.000000"}</span>
-          <span className={styles.cardSubtext}>Calculated LLM token consumption expenditure</span>
-        </div>
 
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardLabel}>Total LLM Requests</span>
-            <div className={styles.cardIconWrapper} style={{ background: "rgba(59, 130, 246, 0.15)", color: "#60a5fa" }}>
-              <BarChart3 size={18} />
+          {/* Complexity Breakdown Section */}
+          <div className={styles.sectionBlock}>
+            <div className={styles.sectionHeader}>
+              <h3 className={styles.sectionTitle}>
+                <Zap size={18} color="#f59e0b" />
+                Request Complexity Distribution
+              </h3>
+            </div>
+
+            <div className={styles.complexityGrid}>
+              <div className={`${styles.complexityCard} ${styles.compSimple}`}>
+                <div className={styles.compHeader}>
+                  <span className={styles.compTitle}>Simple Requests</span>
+                  <span className={styles.chipSimple}>Simple</span>
+                </div>
+                <span className={styles.compCount}>{simpleCount}</span>
+                <div className={styles.progressBarTrack}>
+                  <div 
+                    className={styles.progressBarFill} 
+                    style={{ width: `${Math.round((simpleCount / totalReqs) * 100)}%`, background: "#10b981" }}
+                  />
+                </div>
+                <span className={styles.cardSubtext}>{Math.round((simpleCount / totalReqs) * 100)}% of total queries</span>
+              </div>
+
+              <div className={`${styles.complexityCard} ${styles.compMedium}`}>
+                <div className={styles.compHeader}>
+                  <span className={styles.compTitle}>Medium Requests</span>
+                  <span className={styles.chipMedium}>Medium</span>
+                </div>
+                <span className={styles.compCount}>{mediumCount}</span>
+                <div className={styles.progressBarTrack}>
+                  <div 
+                    className={styles.progressBarFill} 
+                    style={{ width: `${Math.round((mediumCount / totalReqs) * 100)}%`, background: "#f59e0b" }}
+                  />
+                </div>
+                <span className={styles.cardSubtext}>{Math.round((mediumCount / totalReqs) * 100)}% of total queries</span>
+              </div>
+
+              <div className={`${styles.complexityCard} ${styles.compComplex}`}>
+                <div className={styles.compHeader}>
+                  <span className={styles.compTitle}>Complex Requests</span>
+                  <span className={styles.chipComplex}>Complex</span>
+                </div>
+                <span className={styles.compCount}>{complexCount}</span>
+                <div className={styles.progressBarTrack}>
+                  <div 
+                    className={styles.progressBarFill} 
+                    style={{ width: `${Math.round((complexCount / totalReqs) * 100)}%`, background: "#ef4444" }}
+                  />
+                </div>
+                <span className={styles.cardSubtext}>{Math.round((complexCount / totalReqs) * 100)}% of total queries</span>
+              </div>
             </div>
           </div>
-          <span className={styles.cardValue}>{currentSummary.total_requests || 0}</span>
-          <span className={styles.cardSubtext}>Inferences processed across models</span>
-        </div>
-
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardLabel}>Total Tokens</span>
-            <div className={styles.cardIconWrapper} style={{ background: "rgba(168, 85, 247, 0.15)", color: "#c084fc" }}>
-              <Layers size={18} />
-            </div>
-          </div>
-          <span className={styles.cardValue}>{(currentSummary.total_tokens || 0).toLocaleString()}</span>
-          <span className={styles.cardSubtext}>
-            In: {(currentSummary.prompt_tokens || 0).toLocaleString()} | Out: {(currentSummary.completion_tokens || 0).toLocaleString()}
-          </span>
-        </div>
-
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardLabel}>Avg Latency</span>
-            <div className={styles.cardIconWrapper} style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24" }}>
-              <Clock size={18} />
-            </div>
-          </div>
-          <span className={styles.cardValue}>{currentSummary.avg_latency_seconds || 0}s</span>
-          <span className={styles.cardSubtext}>Average response time per inference</span>
-        </div>
-      </div>
-
-      {/* Complexity Breakdown Section */}
-      <div className={styles.sectionBlock}>
-        <div className={styles.sectionHeader}>
-          <h3 className={styles.sectionTitle}>
-            <Zap size={18} color="#f59e0b" />
-            Request Complexity Distribution
-          </h3>
-        </div>
-
-        <div className={styles.complexityGrid}>
-          <div className={`${styles.complexityCard} ${styles.compSimple}`}>
-            <div className={styles.compHeader}>
-              <span className={styles.compTitle}>Simple Requests</span>
-              <span className={styles.chipSimple}>Simple</span>
-            </div>
-            <span className={styles.compCount}>{simpleCount}</span>
-            <div className={styles.progressBarTrack}>
-              <div 
-                className={styles.progressBarFill} 
-                style={{ width: `${Math.round((simpleCount / totalReqs) * 100)}%`, background: "#10b981" }}
-              />
-            </div>
-            <span className={styles.cardSubtext}>{Math.round((simpleCount / totalReqs) * 100)}% of total queries</span>
-          </div>
-
-          <div className={`${styles.complexityCard} ${styles.compMedium}`}>
-            <div className={styles.compHeader}>
-              <span className={styles.compTitle}>Medium Requests</span>
-              <span className={styles.chipMedium}>Medium</span>
-            </div>
-            <span className={styles.compCount}>{mediumCount}</span>
-            <div className={styles.progressBarTrack}>
-              <div 
-                className={styles.progressBarFill} 
-                style={{ width: `${Math.round((mediumCount / totalReqs) * 100)}%`, background: "#f59e0b" }}
-              />
-            </div>
-            <span className={styles.cardSubtext}>{Math.round((mediumCount / totalReqs) * 100)}% of total queries</span>
-          </div>
-
-          <div className={`${styles.complexityCard} ${styles.compComplex}`}>
-            <div className={styles.compHeader}>
-              <span className={styles.compTitle}>Complex Requests</span>
-              <span className={styles.chipComplex}>Complex</span>
-            </div>
-            <span className={styles.compCount}>{complexCount}</span>
-            <div className={styles.progressBarTrack}>
-              <div 
-                className={styles.progressBarFill} 
-                style={{ width: `${Math.round((complexCount / totalReqs) * 100)}%`, background: "#ef4444" }}
-              />
-            </div>
-            <span className={styles.cardSubtext}>{Math.round((complexCount / totalReqs) * 100)}% of total queries</span>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Main Data Section (Tab 1: Per User Per Model Matrix / Admin Table) */}
-      {(activeTab === "matrix" || userRole === "admin") && activeTab !== "personal" && activeTab !== "models" && (
+      {activeTab === "matrix" && (
         <div className={styles.sectionBlock}>
           <div className={styles.sectionHeader}>
             <h3 className={styles.sectionTitle}>
@@ -580,7 +671,7 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
       )}
 
       {/* Personal Model Breakdown Table (Tab 2 or User View) */}
-      {(activeTab === "personal" || userRole !== "admin") && (
+      {activeTab === "personal" && (
         <div className={styles.sectionBlock}>
           <div className={styles.sectionHeader}>
             <h3 className={styles.sectionTitle}>
@@ -642,7 +733,7 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
       )}
 
       {/* Available Model Catalog & Details (Tab 3) */}
-      {(activeTab === "models" || registeredModels.length > 0) && (
+      {activeTab === "models" && (
         <div className={styles.sectionBlock}>
           <div className={styles.sectionHeader}>
             <h3 className={styles.sectionTitle}>
@@ -660,6 +751,7 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
                 <tr>
                   {renderSortHeader("Model ID", "id", catalogSort, setCatalogSort)}
                   {renderSortHeader("Provider", "provider", catalogSort, setCatalogSort)}
+                  {renderSortHeader("Available Since", "added_date", catalogSort, setCatalogSort)}
                   <th>Capabilities</th>
                   <th>Best Use Cases</th>
                   {renderSortHeader("Context Window", "context_window", catalogSort, setCatalogSort)}
@@ -669,41 +761,52 @@ export default function UsageDashboard({ activeUserId, userRole }: UsageDashboar
                 </tr>
               </thead>
               <tbody>
-                {sortedCatalog.map((reg) => (
-                  <tr key={reg.id}>
-                    <td>
-                      <span className={styles.modelBadge}>
-                        <Cpu size={12} />
-                        {reg.id}
-                      </span>
+                {sortedCatalog.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: "center", padding: "2rem" }}>
+                      No registered models match the selected timeframe or model filter.
                     </td>
-                    <td style={{ textTransform: "capitalize", color: "#94a3b8" }}>{reg.provider}</td>
-                    <td>
-                      <div className={styles.capabilitiesWrapper}>
-                        {reg.supports_vision && <span className={`${styles.badgeCap} ${styles.badgeVision}`}>Vision</span>}
-                        {reg.supports_reasoning && <span className={`${styles.badgeCap} ${styles.badgeReasoning}`}>Reasoning</span>}
-                        {reg.supports_tool_calling && <span className={`${styles.badgeCap} ${styles.badgeTools}`}>Tools</span>}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={styles.categoriesWrapper}>
-                        {reg.preferred_categories && reg.preferred_categories.length > 0 ? (
-                          reg.preferred_categories.slice(0, 3).map((cat) => (
-                            <span key={cat} className={styles.categoryChip}>
-                              {cat.replace("_", " ")}
-                            </span>
-                          ))
-                        ) : (
-                          <span style={{ color: "#64748b", fontSize: "0.75rem" }}>General</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{reg.context_window?.toLocaleString()} tokens</td>
-                    <td>{(reg.quality_score * 100).toFixed(0)}%</td>
-                    <td style={{ color: "#34d399", fontWeight: 600 }}>${reg.input_cost_per_m?.toFixed(4)}</td>
-                    <td style={{ color: "#34d399", fontWeight: 600 }}>${reg.output_cost_per_m?.toFixed(4)}</td>
                   </tr>
-                ))}
+                ) : (
+                  sortedCatalog.map((reg) => (
+                    <tr key={reg.id}>
+                      <td>
+                        <span className={styles.modelBadge}>
+                          <Cpu size={12} />
+                          {reg.id}
+                        </span>
+                      </td>
+                      <td style={{ textTransform: "capitalize", color: "#94a3b8" }}>{reg.provider}</td>
+                      <td style={{ fontSize: "0.8rem", color: "#94a3b8", fontWeight: 500 }}>
+                        {reg.added_date || "2026-06-01"}
+                      </td>
+                      <td>
+                        <div className={styles.capabilitiesWrapper}>
+                          {reg.supports_vision && <span className={`${styles.badgeCap} ${styles.badgeVision}`}>Vision</span>}
+                          {reg.supports_reasoning && <span className={`${styles.badgeCap} ${styles.badgeReasoning}`}>Reasoning</span>}
+                          {reg.supports_tool_calling && <span className={`${styles.badgeCap} ${styles.badgeTools}`}>Tools</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.categoriesWrapper}>
+                          {reg.preferred_categories && reg.preferred_categories.length > 0 ? (
+                            reg.preferred_categories.slice(0, 3).map((cat) => (
+                              <span key={cat} className={styles.categoryChip}>
+                                {cat.replace("_", " ")}
+                              </span>
+                            ))
+                          ) : (
+                            <span style={{ color: "#64748b", fontSize: "0.75rem" }}>General</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>{reg.context_window?.toLocaleString()} tokens</td>
+                      <td>{(reg.quality_score * 100).toFixed(0)}%</td>
+                      <td style={{ color: "#34d399", fontWeight: 600 }}>${reg.input_cost_per_m?.toFixed(4)}</td>
+                      <td style={{ color: "#34d399", fontWeight: 600 }}>${reg.output_cost_per_m?.toFixed(4)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

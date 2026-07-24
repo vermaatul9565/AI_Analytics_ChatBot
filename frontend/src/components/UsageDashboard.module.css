@@ -7,9 +7,92 @@
   overflow-y: auto;
   box-sizing: border-box;
   gap: 1.5rem;
-  background-color: var(--bg-primary, #0f172a);
-  color: var(--text-primary, #f8fafc);
   font-family: inherit;
+
+  /* Theme variables default (Dark Mode) */
+  --dash-bg: var(--bg-primary, #0f172a);
+  --dash-card-bg: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
+  --dash-block-bg: linear-gradient(145deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%);
+  --dash-inner-card-bg: rgba(255, 255, 255, 0.03);
+  --dash-border: rgba(255, 255, 255, 0.08);
+  --dash-border-subtle: rgba(255, 255, 255, 0.06);
+  --dash-text-primary: var(--text-primary, #f8fafc);
+  --dash-text-secondary: var(--text-secondary, #94a3b8);
+  --dash-text-muted: var(--text-muted, #64748b);
+  
+  --dash-input-bg: rgba(255, 255, 255, 0.05);
+  --dash-input-border: rgba(255, 255, 255, 0.12);
+  
+  --dash-table-th-bg: rgba(255, 255, 255, 0.04);
+  --dash-table-th-hover: rgba(255, 255, 255, 0.08);
+  --dash-table-tr-hover: rgba(255, 255, 255, 0.03);
+  
+  --dash-badge-model-bg: rgba(59, 130, 246, 0.12);
+  --dash-badge-model-text: #60a5fa;
+  --dash-badge-model-border: rgba(59, 130, 246, 0.25);
+  
+  --dash-badge-user-bg: rgba(255, 255, 255, 0.08);
+  --dash-badge-user-text: #e2e8f0;
+  
+  --dash-chip-bg: rgba(255, 255, 255, 0.06);
+  --dash-chip-text: #cbd5e1;
+
+  --dash-badge-vision-bg: rgba(6, 182, 212, 0.15);
+  --dash-badge-vision-text: #22d3ee;
+  --dash-badge-vision-border: rgba(6, 182, 212, 0.25);
+
+  --dash-badge-reasoning-bg: rgba(168, 85, 247, 0.15);
+  --dash-badge-reasoning-text: #c084fc;
+  --dash-badge-reasoning-border: rgba(168, 85, 247, 0.25);
+
+  --dash-badge-tools-bg: rgba(59, 130, 246, 0.15);
+  --dash-badge-tools-text: #60a5fa;
+  --dash-badge-tools-border: rgba(59, 130, 246, 0.25);
+
+  background-color: var(--dash-bg);
+  color: var(--dash-text-primary);
+}
+
+/* Light Mode Overrides */
+:global([data-theme="light"]) .dashboardContainer {
+  --dash-bg: #f8fafc;
+  --dash-card-bg: #ffffff;
+  --dash-block-bg: #ffffff;
+  --dash-inner-card-bg: #f8fafc;
+  --dash-border: #e2e8f0;
+  --dash-border-subtle: #cbd5e1;
+  --dash-text-primary: #0f172a;
+  --dash-text-secondary: #475569;
+  --dash-text-muted: #64748b;
+  
+  --dash-input-bg: #ffffff;
+  --dash-input-border: #cbd5e1;
+  
+  --dash-table-th-bg: #f1f5f9;
+  --dash-table-th-hover: #e2e8f0;
+  --dash-table-tr-hover: #f8fafc;
+  
+  --dash-badge-model-bg: #eff6ff;
+  --dash-badge-model-text: #1d4ed8;
+  --dash-badge-model-border: #bfdbfe;
+  
+  --dash-badge-user-bg: #f1f5f9;
+  --dash-badge-user-text: #334155;
+  
+  --dash-chip-bg: #f1f5f9;
+  --dash-chip-text: #334155;
+
+  --dash-badge-vision-bg: #ecfeff;
+  --dash-badge-vision-text: #0e7490;
+  --dash-badge-vision-border: #a5f3fc;
+
+  --dash-badge-reasoning-bg: #faf5ff;
+  --dash-badge-reasoning-text: #7e22ce;
+  --dash-badge-reasoning-border: #e9d5ff;
+
+  --dash-badge-tools-bg: #eff6ff;
+  --dash-badge-tools-text: #1d4ed8;
+  --dash-badge-tools-border: #bfdbfe;
 }
 
 /* Header Bar */
@@ -20,7 +103,7 @@
   flex-wrap: wrap;
   gap: 1rem;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--dash-border);
 }
 
 .titleArea {
@@ -47,7 +130,7 @@
 
 .subtitle {
   font-size: 0.875rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--dash-text-secondary);
   margin: 0;
 }
 
@@ -69,10 +152,22 @@
   border: 1px solid rgba(236, 72, 153, 0.3);
 }
 
+:global([data-theme="light"]) .adminBadge {
+  background: #fdf2f8;
+  color: #be185d;
+  border-color: #fbcfe8;
+}
+
 .userBadge {
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
   border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+:global([data-theme="light"]) .userBadge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
 }
 
 .controlsGroup {
@@ -83,9 +178,9 @@
 }
 
 .selectInput {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-primary, #f8fafc);
+  background: var(--dash-input-bg);
+  border: 1px solid var(--dash-input-border);
+  color: var(--dash-text-primary);
   padding: 0.45rem 0.85rem;
   border-radius: 8px;
   font-size: 0.85rem;
@@ -97,35 +192,33 @@
 
 .selectInput:hover, .selectInput:focus {
   border-color: #3b82f6;
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .datePickerWrapper {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--dash-input-bg);
+  border: 1px solid var(--dash-input-border);
   padding: 0.25rem 0.6rem;
   border-radius: 8px;
 }
 
 .datePickerLabel {
   font-size: 0.75rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--dash-text-secondary);
   font-weight: 500;
 }
 
 .dateInput {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-primary, #f8fafc);
+  background: transparent;
+  border: 1px solid var(--dash-input-border);
+  color: var(--dash-text-primary);
   padding: 0.35rem 0.6rem;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 500;
   outline: none;
-  color-scheme: dark;
 }
 
 .dateInput:focus {
@@ -133,8 +226,8 @@
 }
 
 .selectInput option {
-  background: #1e293b;
-  color: #f8fafc;
+  background: var(--dash-card-bg);
+  color: var(--dash-text-primary);
 }
 
 .actionBtn {
@@ -145,16 +238,15 @@
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--dash-input-border);
+  background: var(--dash-input-bg);
+  color: var(--dash-text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .actionBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: #3b82f6;
   transform: translateY(-1px);
 }
 
@@ -162,7 +254,7 @@
 .tabsContainer {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--dash-border);
   margin-bottom: 0.5rem;
 }
 
@@ -171,7 +263,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--dash-text-secondary);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -187,7 +279,7 @@
 }
 
 .tabButton:hover:not(.tabButtonActive) {
-  color: var(--text-primary, #f8fafc);
+  color: var(--dash-text-primary);
 }
 
 /* Grid Cards */
@@ -198,21 +290,20 @@
 }
 
 .card {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--dash-card-bg);
+  border: 1px solid var(--dash-border);
   border-radius: 14px;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   position: relative;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--dash-card-shadow);
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .card:hover {
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.4);
   transform: translateY(-2px);
 }
 
@@ -227,7 +318,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--dash-text-secondary);
 }
 
 .cardIconWrapper {
@@ -243,23 +334,24 @@
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--text-primary, #f8fafc);
+  color: var(--dash-text-primary);
 }
 
 .cardSubtext {
   font-size: 0.75rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--dash-text-muted);
 }
 
 /* Complexity Breakdown Panel */
 .sectionBlock {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--dash-block-bg);
+  border: 1px solid var(--dash-border);
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  box-shadow: var(--dash-card-shadow);
 }
 
 .sectionHeader {
@@ -275,6 +367,7 @@
   align-items: center;
   gap: 0.5rem;
   margin: 0;
+  color: var(--dash-text-primary);
 }
 
 .complexityGrid {
@@ -286,8 +379,8 @@
 .complexityCard {
   padding: 1rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--dash-inner-card-bg);
+  border: 1px solid var(--dash-border-subtle);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -315,17 +408,19 @@
   font-size: 0.85rem;
   font-weight: 600;
   text-transform: capitalize;
+  color: var(--dash-text-primary);
 }
 
 .compCount {
   font-size: 1.35rem;
   font-weight: 700;
+  color: var(--dash-text-primary);
 }
 
 .progressBarTrack {
   height: 6px;
   width: 100%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--dash-border-subtle);
   border-radius: 9999px;
   overflow: hidden;
 }
@@ -341,7 +436,7 @@
   width: 100%;
   overflow-x: auto;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--dash-border);
 }
 
 .dataTable {
@@ -352,14 +447,14 @@
 }
 
 .dataTable th {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--dash-table-th-bg);
   padding: 0.85rem 1rem;
   font-weight: 600;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--dash-text-secondary);
   text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--dash-border);
 }
 
 .sortableHeader {
@@ -369,8 +464,8 @@
 }
 
 .sortableHeader:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #f8fafc !important;
+  background: var(--dash-table-th-hover) !important;
+  color: var(--dash-text-primary) !important;
 }
 
 .headerContent {
@@ -382,18 +477,19 @@
 .sortIcon {
   display: inline-flex;
   align-items: center;
-  color: #64748b;
+  color: var(--dash-text-muted);
   transition: color 0.15s ease;
 }
 
 .sortIconActive {
-  color: #38bdf8;
+  color: #3b82f6;
 }
 
 .dataTable td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--dash-border-subtle);
   vertical-align: middle;
+  color: var(--dash-text-primary);
 }
 
 .dataTable tbody tr {
@@ -401,7 +497,7 @@
 }
 
 .dataTable tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--dash-table-tr-hover);
 }
 
 .modelBadge {
@@ -412,9 +508,9 @@
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 600;
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--dash-badge-model-bg);
+  color: var(--dash-badge-model-text);
+  border: 1px solid var(--dash-badge-model-border);
 }
 
 .userChip {
@@ -425,7 +521,8 @@
   border-radius: 9999px;
   font-size: 0.78rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--dash-badge-user-bg);
+  color: var(--dash-badge-user-text);
 }
 
 .complexityChips {
@@ -437,42 +534,61 @@
 
 .chipSimple {
   background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  color: #10b981;
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+:global([data-theme="light"]) .chipSimple {
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .chipMedium {
   background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  color: #f59e0b;
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+:global([data-theme="light"]) .chipMedium {
+  background: #fffbeb;
+  color: #b45309;
 }
 
 .chipComplex {
   background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  color: #ef4444;
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
+:global([data-theme="light"]) .chipComplex {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .costText {
   font-weight: 700;
-  color: #34d399;
+  color: #10b981;
+}
+
+:global([data-theme="light"]) .costText {
+  color: #047857;
 }
 
 .searchBox {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--dash-input-bg);
+  border: 1px solid var(--dash-input-border);
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
   width: 240px;
@@ -481,7 +597,7 @@
 .searchInput {
   background: transparent;
   border: none;
-  color: #f8fafc;
+  color: var(--dash-text-primary);
   font-size: 0.85rem;
   width: 100%;
   outline: none;
@@ -495,7 +611,7 @@
   justify-content: center;
   padding: 3rem;
   gap: 1rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--dash-text-secondary);
 }
 
 .spinner {
@@ -522,21 +638,21 @@
 }
 
 .badgeVision {
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.25);
+  background: var(--dash-badge-vision-bg);
+  color: var(--dash-badge-vision-text);
+  border: 1px solid var(--dash-badge-vision-border);
 }
 
 .badgeReasoning {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: var(--dash-badge-reasoning-bg);
+  color: var(--dash-badge-reasoning-text);
+  border: 1px solid var(--dash-badge-reasoning-border);
 }
 
 .badgeTools {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--dash-badge-tools-bg);
+  color: var(--dash-badge-tools-text);
+  border: 1px solid var(--dash-badge-tools-border);
 }
 
 .categoriesWrapper {
@@ -551,7 +667,7 @@
   font-weight: 500;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cbd5e1;
+  background: var(--dash-chip-bg);
+  color: var(--dash-chip-text);
   text-transform: capitalize;
 }

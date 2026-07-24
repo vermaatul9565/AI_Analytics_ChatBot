@@ -19,6 +19,7 @@ class ModelMetadata(BaseModel):
     max_output_tokens: int
     quality_score: float  # Scale of 0.0 to 1.0 (relative reasoning capacity)
     preferred_categories: List[str]
+    added_date: Optional[str] = "2026-06-01"
 
 class ModelRegistry:
     _models: Dict[str, ModelMetadata] = {
@@ -92,7 +93,8 @@ class ModelRegistry:
             reliability_score=0.99,
             max_output_tokens=8192,
             quality_score=0.85,
-            preferred_categories=["general_qa", "summarization", "writing", "tool_execution", "reasoning"]
+            preferred_categories=["general_qa", "summarization", "writing", "tool_execution", "reasoning"],
+            added_date="2026-07-23"
         ),
         "gemini-3.6-flash-high": ModelMetadata(
             id="gemini-3.6-flash-high",
@@ -110,7 +112,8 @@ class ModelRegistry:
             reliability_score=0.98,
             max_output_tokens=8192,
             quality_score=0.96,
-            preferred_categories=["coding", "debugging", "data_engineering", "sql_generation", "architecture_design", "reasoning"]
+            preferred_categories=["coding", "debugging", "data_engineering", "sql_generation", "architecture_design", "reasoning"],
+            added_date="2026-07-23"
         ),
         "gemini-3.1-pro-preview": ModelMetadata(
             id="gemini-3.1-pro-preview",
